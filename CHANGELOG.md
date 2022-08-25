@@ -10,6 +10,7 @@
 * Fix #4294: crd-generator respects JsonIgnore annotations on enum properties
 * Fix #4320: corrected leader transitions field on leader election leases
 * Fix #4360: JUnit dependencies aren't leaked in child modules
+* Fix #4350: SchemaSwap annotation is now repeatable and is applied multiple times if classes are used more than once in the class hierarchy
 
 
 #### Improvements
