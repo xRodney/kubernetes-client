@@ -32,4 +32,5 @@ public class ContainingMapsSpec {
     return test2;
   }
 
+  private HashMultiMap<String, String> test3;
 }

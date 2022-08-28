@@ -24,12 +24,15 @@ import io.fabric8.crd.example.basic.BasicSpec;
 import io.fabric8.crd.example.basic.BasicStatus;
 import io.fabric8.crd.example.inherited.Child;
 import io.fabric8.crd.example.joke.Joke;
+import io.fabric8.crd.example.map.HashMultiMap;
 import io.fabric8.crd.example.person.Person;
 import io.fabric8.crd.example.webserver.WebServerWithStatusProperty;
 import io.fabric8.crd.generator.utils.Types.SpecAndStatus;
 import io.sundr.model.ClassRef;
 import io.sundr.model.Property;
 import io.sundr.model.TypeDef;
+import io.sundr.model.TypeDefBuilder;
+import io.sundr.model.TypeParamRefBuilder;
 import io.sundr.model.TypeRef;
 import java.util.List;
 import java.util.Optional;
@@ -94,5 +97,14 @@ public class TypesTest {
     assertTrue(Types.isNamespaced(def));
     def = Types.typeDefFrom(Person.class);
     assertFalse(Types.isNamespaced(def));
+  }
+
+  @Test
+  void shouldNotFailWhenInheritingHashMap() {
+    TypeDef typeDef = Types.typeDefFrom(HashMultiMap.class);
+
+    new TypeDefBuilder(typeDef)
+      .accept(TypeParamRefBuilder.class,
+        c -> assertTrue(c.getAttributes().isEmpty(), "type param ref " + c + " should not have attributes, has " + c.getAttributes()));
   }
 }
