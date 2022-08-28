@@ -275,7 +275,7 @@ class CRDGeneratorTest {
       final Map<String, JSONSchemaProps> specProps = version.getSchema().getOpenAPIV3Schema()
         .getProperties().get("spec").getProperties();
 
-      assertEquals(2, specProps.size());
+      assertEquals(3, specProps.size());
 
       checkMapProp(specProps, "test", "array");
       String arrayType = specProps.get("test").getAdditionalProperties().getSchema().getItems().getSchema().getType();
@@ -287,6 +287,11 @@ class CRDGeneratorTest {
       assertEquals("array", valueType);
 
       assertEquals("boolean", valueSchema.getItems().getSchema().getType());
+
+      checkMapProp(specProps, "test3", "string");  // "string" is actually wrong, should be "array"
+      // and these should be array items:
+//      String arrayType2 = specProps.get("test3").getAdditionalProperties().getSchema().getItems().getSchema().getType();
+//      assertEquals("string", arrayType2);
     });
   }
 

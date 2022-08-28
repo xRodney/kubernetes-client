@@ -19,8 +19,6 @@ import io.fabric8.kubernetes.api.model.Namespaced;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.sundr.adapter.api.AdapterContext;
 import io.sundr.adapter.api.Adapters;
-import io.sundr.adapter.apt.AptAdapter;
-import io.sundr.adapter.apt.AptContext;
 import io.sundr.builder.TypedVisitor;
 import io.sundr.model.*;
 import io.sundr.model.functions.GetDefinition;
@@ -35,6 +33,9 @@ import java.util.stream.Stream;
 
 
 public class Types {
+
+  public static final AttributeKey<Boolean> ATTRIBUTE_UNRESOLVABLE = new AttributeKey<>("resolved", Boolean.class);
+
   private Types() {
     throw new IllegalStateException("Utility class");
   }
@@ -84,12 +85,31 @@ public class Types {
     for (int i = 0; i < arguments.size(); i++) {
       String name = parameters.get(i).getName();
       TypeRef typeRef = arguments.get(i);
-      mappings.put(name, typeRef);
+      TypeRef typeRefWithAttribute = markTypeParamRefs(typeRef, ATTRIBUTE_UNRESOLVABLE, true);
+      mappings.put(name, typeRefWithAttribute);
     }
 
     return new TypeDefBuilder(definition)
       .accept(mapClassRefArguments(mappings), mapGenericProperties(mappings))
+      .accept(TypeParamRefBuilder.class, t -> t.removeFromAttributes(ATTRIBUTE_UNRESOLVABLE))
       .build();
+  }
+
+  /**
+   * This is to get around the situation when mappings might contain an entry like {@code V -> List<V>},
+   * where the {@code V} is present as a generic parameter at both sides of the mapping.
+   * Without special handling, it would get expanded repeatedly, causing an infinite loop (or StackOverflowError).
+   * To avoid it, the {@code V} is marked with an attribute, which stops further expansion in @link #mapClassRefArguments(Map)}
+   * @return The type ref with all generic params marked with an attribute
+   */
+  private static <T> TypeRef markTypeParamRefs(TypeRef typeRef, AttributeKey<T> attribute, T value) {
+    if (typeRef instanceof ClassRef) {
+      return new ClassRefBuilder((ClassRef) typeRef)
+        .accept(TypeParamRefBuilder.class, t -> t.withAttributes(Collections.singletonMap(attribute, value)))
+        .build();
+    } else {
+      return typeRef;
+    }
   }
 
   /**
@@ -130,7 +150,7 @@ public class Types {
         List<TypeRef> arguments = new ArrayList<>();
         for (TypeRef arg : c.buildArguments()) {
           TypeRef mappedRef = arg;
-          if (arg instanceof TypeParamRef) {
+          if (arg instanceof TypeParamRef && !arg.hasAttribute(ATTRIBUTE_UNRESOLVABLE)) {
             TypeParamRef typeParamRef = (TypeParamRef) arg;
             TypeRef mapping = mappings.get(typeParamRef.getName());
             if (mapping != null) {
