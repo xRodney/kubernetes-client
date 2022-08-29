@@ -31,7 +31,6 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-
 public class Types {
 
   public static final AttributeKey<Boolean> ATTRIBUTE_UNRESOLVABLE = new AttributeKey<>("resolved", Boolean.class);
@@ -59,23 +58,27 @@ public class Types {
   public static TypeDef unshallow(TypeDef definition) {
     // resolve hierarchy
     final List<ClassRef> classRefs = new ArrayList<>(Types.projectSuperClasses(definition));
+    final List<ClassRef> implementsRefs = new ArrayList<>(Types.projectInterfaces(definition, classRefs));
     // resolve properties
     final List<Property> properties = Types.projectProperties(definition);
     // re-create TypeDef with all the needed information
     return new TypeDef(definition.getKind(), definition.getPackageName(),
       definition.getName(), definition.getComments(), definition.getAnnotations(), classRefs,
-      definition.getImplementsList(), definition.getParameters(), properties,
+      implementsRefs, definition.getParameters(), properties,
       definition.getConstructors(), definition.getMethods(), definition.getOuterTypeName(),
       definition.getInnerTypes(), definition.getModifiers(), definition.getAttributes());
   }
 
   public static TypeDef typeDefFrom(ClassRef classRef) {
-    return unshallow(GetDefinition.of(classRef));
+    return unshallow(projectDefinition(GetDefinition.of(classRef), classRef));
   }
 
   private static TypeDef projectDefinition(ClassRef ref) {
+    return projectDefinition(GetDefinition.of(ref), ref);
+  }
+
+  private static TypeDef projectDefinition(TypeDef definition, ClassRef ref) {
     List<TypeRef> arguments = ref.getArguments();
-    TypeDef definition = GetDefinition.of(ref);
     if (arguments.isEmpty()) {
       return definition;
     }
@@ -171,6 +174,12 @@ public class Types {
       .collect(Collectors.toSet());
   }
 
+  private static Set<ClassRef> projectInterfaces(TypeDef definition, List<ClassRef> extendsList) {
+    return Stream.concat(Stream.of(definition), extendsList.stream().map(Types::projectDefinition))
+      .flatMap(d -> d.getImplementsList().stream())
+      .collect(Collectors.toSet());
+  }
+
   /**
    * All non-static properties (including inherited).
    * @param typeDef        The type.
@@ -246,6 +255,23 @@ public class Types {
       }
     }
     visited.remove(def.getFullyQualifiedName());
+  }
+
+  public static boolean equalByFullyQualifiedName(TypeRef typeRef, TypeDef typeDef) {
+    return typeRef instanceof ClassRef && typeDef != null
+      && ((ClassRef) typeRef).getFullyQualifiedName().equals(typeDef.getFullyQualifiedName());
+  }
+
+  public static TypeRef unwrapTypeArgument(ClassRef type, TypeDef requiredType, int argumentIndex) {
+    if (equalByFullyQualifiedName(type, requiredType)) {
+      return type.getArguments().get(argumentIndex);
+    }
+
+    TypeDef typeDef = Types.typeDefFrom(type);
+    return Stream.concat(typeDef.getExtendsList().stream(), typeDef.getImplementsList().stream())
+      .filter(impl -> equalByFullyQualifiedName(impl, requiredType))
+      .map(t -> t.getArguments().get(argumentIndex))
+      .findAny().orElse(null);
   }
 
   public static class SpecAndStatus {

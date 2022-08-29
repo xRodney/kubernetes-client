@@ -288,10 +288,9 @@ class CRDGeneratorTest {
 
       assertEquals("boolean", valueSchema.getItems().getSchema().getType());
 
-      checkMapProp(specProps, "test3", "string");  // "string" is actually wrong, should be "array"
-      // and these should be array items:
-//      String arrayType2 = specProps.get("test3").getAdditionalProperties().getSchema().getItems().getSchema().getType();
-//      assertEquals("string", arrayType2);
+      checkMapProp(specProps, "test3", "array");
+      String arrayType2 = specProps.get("test3").getAdditionalProperties().getSchema().getItems().getSchema().getType();
+      assertEquals("string", arrayType2);
     });
   }
 

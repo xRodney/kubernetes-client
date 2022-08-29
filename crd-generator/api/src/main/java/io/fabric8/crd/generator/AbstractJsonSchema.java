@@ -15,21 +15,41 @@
  */
 package io.fabric8.crd.generator;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+
 import io.fabric8.crd.generator.annotation.SchemaSwap;
 import io.fabric8.crd.generator.utils.Types;
 import io.fabric8.kubernetes.api.model.Duration;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.sundr.builder.internal.functions.TypeAs;
-import io.sundr.model.*;
+import io.sundr.model.AnnotationRef;
+import io.sundr.model.ClassRef;
+import io.sundr.model.Method;
+import io.sundr.model.PrimitiveRefBuilder;
+import io.sundr.model.Property;
+import io.sundr.model.TypeDef;
+import io.sundr.model.TypeRef;
 import io.sundr.utils.Strings;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.*;
-
+import static io.fabric8.crd.generator.utils.Types.unwrapTypeArgument;
+import static io.sundr.model.utils.Collections.MAP;
 import static io.sundr.model.utils.Types.BOOLEAN_REF;
 import static io.sundr.model.utils.Types.DOUBLE_REF;
 import static io.sundr.model.utils.Types.INT_REF;
@@ -504,7 +524,7 @@ public abstract class AbstractJsonSchema<T, B> {
         LOGGER.warn("Property '{}' with '{}' key type is mapped to 'string' because of CRD schemas limitations", name, typeRef);
       }
 
-      final TypeRef valueType = TypeAs.UNWRAP_MAP_VALUE_OF.apply(typeRef);
+      final TypeRef valueType = unwrapTypeArgument(((ClassRef) typeRef), MAP, 1);
       T schema = internalFromImpl(name, valueType, visited, schemaSwaps);
       if (schema == null) {
         LOGGER.warn(
