@@ -275,11 +275,7 @@ class CRDGeneratorTest {
       final Map<String, JSONSchemaProps> specProps = version.getSchema().getOpenAPIV3Schema()
         .getProperties().get("spec").getProperties();
 
-      assertEquals(3, specProps.size());
-
-      checkMapProp(specProps, "test", "array");
-      String arrayType = specProps.get("test").getAdditionalProperties().getSchema().getItems().getSchema().getType();
-      assertEquals("string", arrayType);
+      checkMapPropIsArrayOf(specProps, "test", "integer");
 
       checkMapProp(specProps, "test2", "object");
       JSONSchemaProps valueSchema = specProps.get("test2").getAdditionalProperties().getSchema().getAdditionalProperties().getSchema();
@@ -288,10 +284,13 @@ class CRDGeneratorTest {
 
       assertEquals("boolean", valueSchema.getItems().getSchema().getType());
 
-      checkMapProp(specProps, "test3", "string");  // "string" is actually wrong, should be "array"
-      // and these should be array items:
-//      String arrayType2 = specProps.get("test3").getAdditionalProperties().getSchema().getItems().getSchema().getType();
-//      assertEquals("string", arrayType2);
+      checkMapPropIsArrayOf(specProps, "test3", "integer");
+      checkMapPropIsArrayOf(specProps, "test4", "integer");
+      checkMapPropIsArrayOf(specProps, "test5", "integer");
+      checkMapPropIsArrayOf(specProps, "test6", "integer");
+      checkMapPropIsArrayOf(specProps, "test7", "integer");
+      checkMapPropIsArrayOf(specProps, "test8", "integer");
+      checkMapPropIsArrayOf(specProps, "test9", "integer");
     });
   }
 
@@ -299,6 +298,12 @@ class CRDGeneratorTest {
     final JSONSchemaProps props = specProps.get(name);
     assertEquals("object", props.getType());
     assertEquals(valueType, props.getAdditionalProperties().getSchema().getType());
+  }
+
+  private void checkMapPropIsArrayOf(Map<String, JSONSchemaProps> specProps, String key, String itemType) {
+    checkMapProp(specProps, key, "array");
+    String arrayType = specProps.get(key).getAdditionalProperties().getSchema().getItems().getSchema().getType();
+    assertEquals(itemType, arrayType);
   }
 
   @Test

@@ -20,17 +20,18 @@ import java.util.Map;
 
 public class ContainingMapsSpec {
 
-  private Map<String, List<String>> test = null;
-
-  public Map<String, List<String>> getTest() {
-    return test;
-  }
-
   private Map<String, Map<String, List<Boolean>>> test2 = null;
-
   public Map<String, Map<String, List<Boolean>>> getTest2() {
     return test2;
   }
 
-  private HashMultiMap<String, String> test3;
+  // all these denote the same schema
+  private Map<String, List<Integer>> test = null;
+  private MultiMap<String, Integer> test3;
+  private MultiHashMap<String, Integer> test4;
+  private StringKeyMultiMap<Integer> test5;
+  private IntegerValueMultiMap<String> test6;
+  private StringIntegerMultiMap test7;
+  private StringIntegerMultiHashMap test8;
+  private WeirdMap<?, List<Integer>, Integer, String> test9;
 }
