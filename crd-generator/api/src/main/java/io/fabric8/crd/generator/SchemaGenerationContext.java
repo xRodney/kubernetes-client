@@ -16,16 +16,26 @@
 package io.fabric8.crd.generator;
 
 import io.sundr.model.ClassRef;
+import io.sundr.model.Property;
+import io.sundr.model.TypeDef;
+import io.sundr.model.TypeRef;
 
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
-public class InternalSchemaSwaps {
+public class SchemaGenerationContext {
   private final Map<Key, Value> swaps = new HashMap<>();
+  private final TypeRef root;
+  private final LinkedList<PropertyOnType> path = new LinkedList<>();
+
+  public SchemaGenerationContext(TypeRef root) {
+    this.root = root;
+  }
 
   public void registerSwap(ClassRef definitionType, ClassRef originalType, String fieldName, ClassRef targetType) {
     Value value = new Value(definitionType, originalType, fieldName, targetType);
@@ -49,6 +59,25 @@ public class InternalSchemaSwaps {
     if (!unmatchedSchemaSwaps.isEmpty()) {
       throw new IllegalArgumentException("Unmatched SchemaSwaps: " + unmatchedSchemaSwaps);
     }
+  }
+
+  public void pushLevel(TypeDef type, String property) {
+    PropertyOnType propertyOnType = new PropertyOnType(type.getFullyQualifiedName(), property);
+    long count = path.stream().filter(p -> p.equals(propertyOnType)).count();
+    if (count > 0) {
+      throw new IllegalArgumentException("Found a cyclic reference: " + renderCurrentPath() + " ??? " + propertyOnType);
+    }
+    path.addLast(propertyOnType);
+  }
+
+  public void popLevel() {
+    path.removeLast();
+  }
+
+  private String renderCurrentPath() {
+    return path.stream()
+        .map(Object::toString)
+        .collect(Collectors.joining(" -> "));
   }
 
   private static final class Key {
@@ -133,6 +162,46 @@ public class InternalSchemaSwaps {
     public String toString() {
       return "@SchemaSwap(originalType=" + originalType + ", fieldName=\"" + fieldName + "\", targetType=" + targetType
           + ") on " + definitionType;
+    }
+  }
+
+  private static class PropertyOnType {
+    private final String type;
+    private final String property;
+
+    public PropertyOnType(String type, String property) {
+      this.type = type;
+      this.property = property;
+    }
+
+    public String getType() {
+      return type;
+    }
+
+    public String getProperty() {
+      return property;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      PropertyOnType that = (PropertyOnType) o;
+      return Objects.equals(type, that.type) && Objects.equals(property, that.property);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(type, property);
+    }
+
+    @Override
+    public String toString() {
+      return type + "#" + property;
     }
   }
 }

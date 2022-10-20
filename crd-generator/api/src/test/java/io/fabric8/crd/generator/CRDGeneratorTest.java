@@ -211,10 +211,15 @@ class CRDGeneratorTest {
         .forCRDVersions("v1", "v1beta1")
         .withOutput(output);
 
-    assertThrows(
+    IllegalArgumentException exception = assertThrows(
         IllegalArgumentException.class,
         () -> generator.detailedGenerate(),
         "An IllegalArgument Exception hasn't been thrown when generating a CRD with cyclic references");
+
+    assertEquals("Found a cyclic reference: io.fabric8.crd.example.cyclic.Cyclic#spec "
+        + "-> io.fabric8.crd.example.cyclic.CyclicSpec#ref "
+        + "-> io.fabric8.crd.example.cyclic.Ref#ref "
+        + "??? io.fabric8.crd.example.cyclic.Ref#ref", exception.getMessage());
   }
 
   @Test
@@ -224,10 +229,15 @@ class CRDGeneratorTest {
         .forCRDVersions("v1", "v1beta1")
         .withOutput(output);
 
-    assertThrows(
+    IllegalArgumentException exception = assertThrows(
         IllegalArgumentException.class,
         () -> generator.detailedGenerate(),
         "An IllegalArgument Exception hasn't been thrown when generating a CRD with cyclic references");
+
+    assertEquals("Found a cyclic reference: io.fabric8.crd.example.cyclic.CyclicList#spec "
+        + "-> io.fabric8.crd.example.cyclic.CyclicListSpec#ref "
+        + "-> io.fabric8.crd.example.cyclic.RefList#ref "
+        + "??? io.fabric8.crd.example.cyclic.RefList#ref", exception.getMessage());
   }
 
   @Test
