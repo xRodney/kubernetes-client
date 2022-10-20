@@ -100,6 +100,8 @@
     <awaitility.version>4.2.0</awaitility.version>
     <approvaltests.version>18.5.0</approvaltests.version>
     <mockito.version>4.8.1</mockito.version>
+    <!-- Keycloak model version for crd-generator testing -->
+    <keycloak.version>19.0.3</keycloak.version>
 
     <conscrypt-openjdk-uber.bundle.version>1.4.2_1</conscrypt-openjdk-uber.bundle.version>
     <generex.version>1.0.2</generex.version>
@@ -839,6 +841,14 @@
         <groupId>com.approvaltests</groupId>
         <artifactId>approvaltests</artifactId>
         <version>${approvaltests.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <!-- Keycloak model for crd-generator testing -->
+      <dependency>
+        <groupId>org.keycloak</groupId>
+        <artifactId>keycloak-core</artifactId>
+        <version>${keycloak.version}</version>
         <scope>test</scope>
       </dependency>
     </dependencies>
