@@ -20,6 +20,7 @@ import io.fabric8.crd.example.basic.BasicSpec;
 import io.fabric8.crd.example.basic.BasicStatus;
 import io.fabric8.crd.example.cyclic.Cyclic;
 import io.fabric8.crd.example.cyclic.CyclicList;
+import io.fabric8.crd.example.extraction.ConflictingSchemaSwaps;
 import io.fabric8.crd.example.extraction.OverlappingSchemaSwaps;
 import io.fabric8.crd.example.inherited.*;
 import io.fabric8.crd.example.joke.Joke;
@@ -444,6 +445,11 @@ class CRDGeneratorTest {
       assertNull(prop5.getXKubernetesPreserveUnknownFields());
       assertEquals("string", prop5.getType());
     });
+  }
+
+  @Test
+  void conflictingSchemaSwaps() {
+    assertThrows(IllegalArgumentException.class, () -> checkSpec(ConflictingSchemaSwaps.class, Scope.NAMESPACED));
   }
 
   private CustomResourceDefinitionVersion checkCRD(Class<? extends CustomResource<?, ?>> customResource, String kind,

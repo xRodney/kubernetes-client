@@ -41,11 +41,9 @@ public class SchemaGenerationContext {
     // In that case we store the previous value on the hierarchy list, so that we can restore it later.
     // If there is already a record in the hierarchy, the two swaps are defined on the same level, which is a conflict.
     // A special case is the top level, where hierarchy is empty. In that case, it can only be a conflict.
-    if (previous != null) {
-      Value conflict = hierarchy.isEmpty() ? previous : hierarchy.getLast().storeSwap(key, previous);
-      if (conflict != null) {
-        throw new IllegalArgumentException("Conflicting SchemaSwaps");
-      }
+    Value conflict = hierarchy.isEmpty() ? previous : hierarchy.getLast().storeSwap(key, previous);
+    if (conflict != null) {
+      throw new IllegalArgumentException("Conflicting SchemaSwaps: " + value + " vs. " + previous);
     }
   }
 
@@ -63,8 +61,9 @@ public class SchemaGenerationContext {
     throwIfUnmatchedSwaps(swaps);
   }
 
-  private void throwIfUnmatchedSwaps(Map<Key, Value> swaps1) {
-    String unmatchedSchemaSwaps = swaps1.values().stream().filter(value -> !value.used)
+  private static void throwIfUnmatchedSwaps(Map<Key, Value> swaps) {
+    String unmatchedSchemaSwaps = swaps.values().stream()
+      .filter(value -> value != null && !value.used)
       .map(Object::toString)
       .collect(Collectors.joining(", "));
     if (!unmatchedSchemaSwaps.isEmpty()) {
@@ -208,9 +207,9 @@ public class SchemaGenerationContext {
         return Collections.emptyMap();
       }
 
-      Map<Key, Value> oldValues = new HashMap<>(storedSwaps.size());
-      storedSwaps.forEach((key, value) -> oldValues.put(key, swaps.put(key, value)));
-      return oldValues;
+      Map<Key, Value> overrides = new HashMap<>(storedSwaps.size());
+      storedSwaps.forEach((key, value) -> overrides.put(key, swaps.put(key, value)));
+      return overrides;
     }
 
     @Override
