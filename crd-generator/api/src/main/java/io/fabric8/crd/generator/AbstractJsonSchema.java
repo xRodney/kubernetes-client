@@ -490,7 +490,10 @@ public abstract class AbstractJsonSchema<T, B> {
       if (method != null) {
         propertyOrAccessors.add(PropertyOrAccessor.fromMethod(method, name));
       }
-      schemaFrom = schemaSwap;
+      if (schemaSwap != null) {
+        schemaFrom = schemaSwap;
+        ignored = schemaSwap.getFullyQualifiedName().equals(VOID.getName());
+      }
       min = null;
       max = null;
       pattern = null;
