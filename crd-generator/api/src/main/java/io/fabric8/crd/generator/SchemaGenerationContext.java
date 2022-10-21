@@ -16,20 +16,35 @@
 package io.fabric8.crd.generator;
 
 import io.sundr.model.ClassRef;
+import io.sundr.model.TypeDef;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
-public class InternalSchemaSwaps {
+public class SchemaGenerationContext {
   private final Map<Key, Value> swaps = new HashMap<>();
+  private final LinkedList<HierarchyLevel> hierarchy = new LinkedList<>();
 
   public void registerSwap(ClassRef definitionType, ClassRef originalType, String fieldName, ClassRef targetType) {
     Value value = new Value(definitionType, originalType, fieldName, targetType);
-    swaps.put(new Key(originalType, fieldName), value);
+    Key key = new Key(originalType, fieldName);
+    Value previous = swaps.put(key, value);
+
+    // Non-null previous value indicates that there are overlapping schema swaps.
+    // This may mean that we are replacing a general swap with a more specific one.
+    // In that case we store the previous value on the hierarchy list, so that we can restore it later.
+    // If there is already a record in the hierarchy, the two swaps are defined on the same level, which is a conflict.
+    // A special case is the top level, where hierarchy is empty. In that case, it can only be a conflict.
+    Value conflict = hierarchy.isEmpty() ? previous : hierarchy.getLast().storeSwap(key, previous);
+    if (conflict != null) {
+      throw new IllegalArgumentException("Conflicting SchemaSwaps: " + value + " vs. " + previous);
+    }
   }
 
   public Optional<ClassRef> lookupAndMark(ClassRef originalType, String name) {
@@ -43,12 +58,38 @@ public class InternalSchemaSwaps {
   }
 
   public void throwIfUnmatchedSwaps() {
-    String unmatchedSchemaSwaps = swaps.values().stream().filter(value -> !value.used)
-        .map(Object::toString)
-        .collect(Collectors.joining(", "));
+    throwIfUnmatchedSwaps(swaps);
+  }
+
+  private static void throwIfUnmatchedSwaps(Map<Key, Value> swaps) {
+    String unmatchedSchemaSwaps = swaps.values().stream()
+      .filter(value -> value != null && !value.used)
+      .map(Object::toString)
+      .collect(Collectors.joining(", "));
     if (!unmatchedSchemaSwaps.isEmpty()) {
       throw new IllegalArgumentException("Unmatched SchemaSwaps: " + unmatchedSchemaSwaps);
     }
+  }
+
+  public void pushLevel(TypeDef type, String property) {
+    HierarchyLevel level = new HierarchyLevel(type.getFullyQualifiedName(), property);
+    long count = hierarchy.stream().filter(p -> p.equals(level)).count();
+    if (count > 0) {
+      throw new IllegalArgumentException("Found a cyclic reference: " + renderCurrentPath() + " ??? " + level);
+    }
+    hierarchy.addLast(level);
+  }
+
+  public void popLevel() {
+    HierarchyLevel level = hierarchy.removeLast();
+    Map<Key, Value> popped = level.restoreSwapsTo(swaps);
+    throwIfUnmatchedSwaps(popped);
+  }
+
+  private String renderCurrentPath() {
+    return hierarchy.stream()
+        .map(Object::toString)
+        .collect(Collectors.joining(" -> "));
   }
 
   private static final class Key {
@@ -133,6 +174,64 @@ public class InternalSchemaSwaps {
     public String toString() {
       return "@SchemaSwap(originalType=" + originalType + ", fieldName=\"" + fieldName + "\", targetType=" + targetType
           + ") on " + definitionType;
+    }
+  }
+
+  private static class HierarchyLevel {
+    private final String type;
+    private final String property;
+    private Map<Key, Value> storedSwaps;
+
+    public HierarchyLevel(String type, String property) {
+      this.type = type;
+      this.property = property;
+    }
+
+    public String getType() {
+      return type;
+    }
+
+    public String getProperty() {
+      return property;
+    }
+
+    public Value storeSwap(Key key, Value swap) {
+      if (storedSwaps == null) {
+        storedSwaps = new HashMap<>();
+      }
+      return storedSwaps.put(key, swap);
+    }
+
+    public Map<Key, Value> restoreSwapsTo(Map<Key, Value> swaps) {
+      if (storedSwaps == null) {
+        return Collections.emptyMap();
+      }
+
+      Map<Key, Value> overrides = new HashMap<>(storedSwaps.size());
+      storedSwaps.forEach((key, value) -> overrides.put(key, swaps.put(key, value)));
+      return overrides;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      HierarchyLevel that = (HierarchyLevel) o;
+      return Objects.equals(type, that.type) && Objects.equals(property, that.property);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(type, property);
+    }
+
+    @Override
+    public String toString() {
+      return type + "#" + property;
     }
   }
 }

@@ -20,6 +20,9 @@ import io.fabric8.crd.example.basic.BasicSpec;
 import io.fabric8.crd.example.basic.BasicStatus;
 import io.fabric8.crd.example.cyclic.Cyclic;
 import io.fabric8.crd.example.cyclic.CyclicList;
+import io.fabric8.crd.example.extraction.ConflictingSchemaSwaps;
+import io.fabric8.crd.example.extraction.ConstrainedSchemaSwaps;
+import io.fabric8.crd.example.extraction.OverlappingSchemaSwaps;
 import io.fabric8.crd.example.inherited.*;
 import io.fabric8.crd.example.joke.Joke;
 import io.fabric8.crd.example.joke.JokeRequest;
@@ -52,6 +55,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -211,10 +216,15 @@ class CRDGeneratorTest {
         .forCRDVersions("v1", "v1beta1")
         .withOutput(output);
 
-    assertThrows(
+    IllegalArgumentException exception = assertThrows(
         IllegalArgumentException.class,
         () -> generator.detailedGenerate(),
         "An IllegalArgument Exception hasn't been thrown when generating a CRD with cyclic references");
+
+    assertEquals("Found a cyclic reference: io.fabric8.crd.example.cyclic.Cyclic#spec "
+        + "-> io.fabric8.crd.example.cyclic.CyclicSpec#ref "
+        + "-> io.fabric8.crd.example.cyclic.Ref#ref "
+        + "??? io.fabric8.crd.example.cyclic.Ref#ref", exception.getMessage());
   }
 
   @Test
@@ -224,10 +234,15 @@ class CRDGeneratorTest {
         .forCRDVersions("v1", "v1beta1")
         .withOutput(output);
 
-    assertThrows(
+    IllegalArgumentException exception = assertThrows(
         IllegalArgumentException.class,
         () -> generator.detailedGenerate(),
         "An IllegalArgument Exception hasn't been thrown when generating a CRD with cyclic references");
+
+    assertEquals("Found a cyclic reference: io.fabric8.crd.example.cyclic.CyclicList#spec "
+        + "-> io.fabric8.crd.example.cyclic.CyclicListSpec#ref "
+        + "-> io.fabric8.crd.example.cyclic.RefList#ref "
+        + "??? io.fabric8.crd.example.cyclic.RefList#ref", exception.getMessage());
   }
 
   @Test
@@ -389,6 +404,96 @@ class CRDGeneratorTest {
       Map<String, JSONSchemaProps> status = properties.get("status").getProperties();
       assertEquals("string", status.get("message").getType());
     });
+  }
+
+  @Test
+  void overlappingSchemaSwaps() {
+    outputCRDIfFailed(OverlappingSchemaSwaps.class, (customResource) -> {
+      CustomResourceDefinitionVersion version = checkCRD(OverlappingSchemaSwaps.class, "OverlappingSchemaSwaps", "overlappingschemaswaps",
+        Scope.NAMESPACED);
+      assertNull(version.getSubresources());
+
+      final Map<String, JSONSchemaProps> specProps = version.getSchema().getOpenAPIV3Schema()
+        .getProperties().get("spec").getProperties();
+
+      assertEquals(5, specProps.size());
+
+      Function<String, JSONSchemaProps> checkProp = (name) -> {
+        final JSONSchemaProps props = specProps.get(name);
+        assertNotNull(props, name + " should be contained in spec");
+        assertEquals("object", props.getType(), name + "'s type should be object");
+        JSONSchemaProps myObject = props.getProperties().get("myObject");
+        assertEquals("object", myObject.getType(), name + "'s myObject type should be object");
+        return myObject.getProperties().get("joker");
+      };
+
+      JSONSchemaProps prop1 = checkProp.apply("prop1");
+      assertNull(prop1.getXKubernetesPreserveUnknownFields());
+      assertEquals("string", prop1.getType());
+
+      JSONSchemaProps prop2 = checkProp.apply("prop2");
+      assertNull(prop2.getXKubernetesPreserveUnknownFields());
+      assertEquals("string", prop2.getType());
+
+      JSONSchemaProps prop3 = checkProp.apply("prop3");
+      assertTrue(prop3.getXKubernetesPreserveUnknownFields());
+
+      JSONSchemaProps prop4 = checkProp.apply("prop4");
+      assertNull(prop4.getXKubernetesPreserveUnknownFields());
+      assertEquals("string", prop4.getType());
+
+      JSONSchemaProps prop5 = checkProp.apply("prop5");
+      assertNull(prop5.getXKubernetesPreserveUnknownFields());
+      assertEquals("string", prop5.getType());
+    });
+  }
+
+
+  @Test
+  void constrainedSchemaSwaps() {
+    outputCRDIfFailed(OverlappingSchemaSwaps.class, (customResource) -> {
+      CustomResourceDefinitionVersion version = checkCRD(ConstrainedSchemaSwaps.class, "ConstrainedSchemaSwaps", "constrainedschemaswaps",
+        Scope.NAMESPACED);
+      assertNull(version.getSubresources());
+
+      final Map<String, JSONSchemaProps> specProps = version.getSchema().getOpenAPIV3Schema()
+        .getProperties().get("spec").getProperties();
+
+      assertEquals(5, specProps.size());
+
+      Function<String, JSONSchemaProps> checkProp = (name) -> {
+        final JSONSchemaProps props = specProps.get(name);
+        assertNotNull(props, name + " should be contained in spec");
+        assertEquals("object", props.getType(), name + "'s type should be object");
+        JSONSchemaProps myObject = props.getProperties().get("myObject");
+        assertEquals("object", myObject.getType(), name + "'s myObject type should be object");
+        return myObject.getProperties().get("joker");
+      };
+
+      JSONSchemaProps prop1 = checkProp.apply("prop1");
+      assertNull(prop1.getXKubernetesPreserveUnknownFields());
+      assertEquals("integer", prop1.getType());
+
+      JSONSchemaProps prop2 = checkProp.apply("prop2");
+      assertNull(prop2.getXKubernetesPreserveUnknownFields());
+      assertEquals("integer", prop2.getType());
+
+      JSONSchemaProps prop3 = checkProp.apply("prop3");
+      assertTrue(prop3.getXKubernetesPreserveUnknownFields());
+
+      JSONSchemaProps prop4 = checkProp.apply("prop4");
+      assertNull(prop4.getXKubernetesPreserveUnknownFields());
+      assertEquals("integer", prop4.getType());
+
+      JSONSchemaProps prop5 = checkProp.apply("prop5");
+      assertNull(prop5.getXKubernetesPreserveUnknownFields());
+      assertEquals("integer", prop5.getType());
+    });
+  }
+
+  @Test
+  void conflictingSchemaSwaps() {
+    assertThrows(IllegalArgumentException.class, () -> checkSpec(ConflictingSchemaSwaps.class, Scope.NAMESPACED));
   }
 
   private CustomResourceDefinitionVersion checkCRD(Class<? extends CustomResource<?, ?>> customResource, String kind,
