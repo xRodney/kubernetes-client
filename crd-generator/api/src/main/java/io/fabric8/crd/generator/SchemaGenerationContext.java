@@ -37,9 +37,12 @@ public class SchemaGenerationContext {
   }
 
   public void registerSwap(ClassRef definitionType, SchemaSwapModel swap) {
-    Value value = new Value(definitionType, swap.originalType, swap.fieldName, swap.targetType);
     Key key = new Key(swap.originalType, swap.fieldName);
-    hierarchy.getLast().addSwap(key, value);
+    Value value = new Value(definitionType, swap.originalType, swap.fieldName, swap.targetType);
+    Value conflict = hierarchy.getLast().addSwap(key, value);
+    if (conflict != null) {
+      throw new IllegalArgumentException("Conflict");
+    }
   }
 
   public Optional<ClassRef> lookupAndMark(ClassRef originalType, String name) {
@@ -216,11 +219,11 @@ public class SchemaGenerationContext {
       return swaps == null ? Collections.emptyMap() : swaps;
     }
 
-    public void addSwap(Key key, Value value) {
+    public Value addSwap(Key key, Value value) {
       if (swaps == null) {
         swaps = new HashMap<>();
       }
-      swaps.put(key, value);
+      return swaps.put(key, value);
     }
 
     public Property getProperty() {

@@ -15,6 +15,8 @@
  */
 package io.fabric8.crd.example.extraction;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import io.fabric8.crd.generator.annotation.SchemaSwap;
 import io.fabric8.kubernetes.api.model.Namespaced;
 import io.fabric8.kubernetes.client.CustomResource;
@@ -24,6 +26,7 @@ import io.fabric8.kubernetes.model.annotation.Version;
 @Group("samples.javaoperatorsdk.io")
 @Version("v1alpha1")
 @SchemaSwap(originalType = SchemaSwapSpec2.Joker.class, fieldName = "joker", targetType = String.class)
-public class OverlappingSchemaSwaps extends CustomResource<SchemaSwapSpec2, Void> implements Namespaced {
+@SchemaSwap(originalType = SchemaSwapSpec2.Joker.class, fieldName = "joker", targetType = Integer.class)
+public class ConflictingSchemaSwaps extends CustomResource<SchemaSwapSpec2, Void> implements Namespaced {
 
 }
