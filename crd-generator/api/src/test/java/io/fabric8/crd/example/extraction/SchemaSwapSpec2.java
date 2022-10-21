@@ -11,7 +11,6 @@ public class SchemaSwapSpec2 {
   private WithString2 prop4;
   private WithString1 prop5;
 
-
   private static class WithString1 {
     private Joker myObject;
   }
