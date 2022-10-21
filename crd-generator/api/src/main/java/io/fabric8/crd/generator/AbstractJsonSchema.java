@@ -182,7 +182,7 @@ public abstract class AbstractJsonSchema<T, B> {
    * @return The schema.
    */
   protected T internalFrom(TypeDef definition, String... ignore) {
-    SchemaGenerationContext context = new SchemaGenerationContext(definition.toReference());
+    SchemaGenerationContext context = new SchemaGenerationContext();
     T ret = internalFromImpl(definition, context, ignore);
     context.throwIfUnmatchedSwaps();
     return ret;
@@ -624,7 +624,7 @@ public abstract class AbstractJsonSchema<T, B> {
    * @return the structural schema associated with the specified property
    */
   public T internalFrom(String name, TypeRef typeRef) {
-    return internalFromImpl(name, typeRef, new SchemaGenerationContext(typeRef));
+    return internalFromImpl(name, typeRef, new SchemaGenerationContext());
   }
 
   private T internalFromImpl(String name, TypeRef typeRef, SchemaGenerationContext context) {

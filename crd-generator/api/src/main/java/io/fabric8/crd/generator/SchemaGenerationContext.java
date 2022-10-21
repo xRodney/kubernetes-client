@@ -17,8 +17,8 @@ package io.fabric8.crd.generator;
 
 import io.sundr.model.ClassRef;
 import io.sundr.model.TypeDef;
-import io.sundr.model.TypeRef;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
@@ -29,38 +29,24 @@ import java.util.stream.Collectors;
 
 public class SchemaGenerationContext {
   private final Map<Key, Value> swaps = new HashMap<>();
-  private final TypeRef root;
-  private final LinkedList<PropertyOnType> path = new LinkedList<>();
-  // swapsPerLevel follows the same structure as path, but has one null entry at the beginning
-  private final LinkedList<Map<Key, Value>> overridenSwapsPerLevel = new LinkedList<>();
-
-  public SchemaGenerationContext(TypeRef root) {
-    this.root = root;
-    overridenSwapsPerLevel.addLast(null);
-  }
+  private final LinkedList<HierarchyLevel> hierarchy = new LinkedList<>();
 
   public void registerSwap(ClassRef definitionType, ClassRef originalType, String fieldName, ClassRef targetType) {
     Value value = new Value(definitionType, originalType, fieldName, targetType);
     Key key = new Key(originalType, fieldName);
     Value previous = swaps.put(key, value);
 
+    // Non-null previous value indicates that there are overlapping schema swaps.
+    // This may mean that we are replacing a general swap with a more specific one.
+    // In that case we store the previous value on the hierarchy list, so that we can restore it later.
+    // If there is already a record in the hierarchy, the two swaps are defined on the same level, which is a conflict.
+    // A special case is the top level, where hierarchy is empty. In that case, it can only be a conflict.
     if (previous != null) {
-      Map<Key, Value> currentSwaps = getCurrentLevelOverridenSwaps();
-      Value conflict = currentSwaps.put(key, previous);
+      Value conflict = hierarchy.isEmpty() ? previous : hierarchy.getLast().storeSwap(key, previous);
       if (conflict != null) {
         throw new IllegalArgumentException("Conflicting SchemaSwaps");
       }
     }
-  }
-
-  private Map<Key, Value> getCurrentLevelOverridenSwaps() {
-    Map<Key, Value> currentSwaps = overridenSwapsPerLevel.getLast();
-    if (currentSwaps == null) {
-      currentSwaps = new HashMap<>();
-      overridenSwapsPerLevel.removeLast();
-      overridenSwapsPerLevel.addLast(currentSwaps);
-    }
-    return currentSwaps;
   }
 
   public Optional<ClassRef> lookupAndMark(ClassRef originalType, String name) {
@@ -74,34 +60,35 @@ public class SchemaGenerationContext {
   }
 
   public void throwIfUnmatchedSwaps() {
-    String unmatchedSchemaSwaps = swaps.values().stream().filter(value -> !value.used)
-        .map(Object::toString)
-        .collect(Collectors.joining(", "));
+    throwIfUnmatchedSwaps(swaps);
+  }
+
+  private void throwIfUnmatchedSwaps(Map<Key, Value> swaps1) {
+    String unmatchedSchemaSwaps = swaps1.values().stream().filter(value -> !value.used)
+      .map(Object::toString)
+      .collect(Collectors.joining(", "));
     if (!unmatchedSchemaSwaps.isEmpty()) {
       throw new IllegalArgumentException("Unmatched SchemaSwaps: " + unmatchedSchemaSwaps);
     }
   }
 
   public void pushLevel(TypeDef type, String property) {
-    PropertyOnType propertyOnType = new PropertyOnType(type.getFullyQualifiedName(), property);
-    long count = path.stream().filter(p -> p.equals(propertyOnType)).count();
+    HierarchyLevel level = new HierarchyLevel(type.getFullyQualifiedName(), property);
+    long count = hierarchy.stream().filter(p -> p.equals(level)).count();
     if (count > 0) {
-      throw new IllegalArgumentException("Found a cyclic reference: " + renderCurrentPath() + " ??? " + propertyOnType);
+      throw new IllegalArgumentException("Found a cyclic reference: " + renderCurrentPath() + " ??? " + level);
     }
-    path.addLast(propertyOnType);
-    overridenSwapsPerLevel.push(null);
+    hierarchy.addLast(level);
   }
 
   public void popLevel() {
-    path.removeLast();
-    Map<Key, Value> currentSwaps = overridenSwapsPerLevel.removeLast();
-    if (currentSwaps != null) {
-      swaps.putAll(currentSwaps);
-    }
+    HierarchyLevel level = hierarchy.removeLast();
+    Map<Key, Value> popped = level.restoreSwapsTo(swaps);
+    throwIfUnmatchedSwaps(popped);
   }
 
   private String renderCurrentPath() {
-    return path.stream()
+    return hierarchy.stream()
         .map(Object::toString)
         .collect(Collectors.joining(" -> "));
   }
@@ -191,11 +178,12 @@ public class SchemaGenerationContext {
     }
   }
 
-  private static class PropertyOnType {
+  private static class HierarchyLevel {
     private final String type;
     private final String property;
+    private Map<Key, Value> storedSwaps;
 
-    public PropertyOnType(String type, String property) {
+    public HierarchyLevel(String type, String property) {
       this.type = type;
       this.property = property;
     }
@@ -208,6 +196,23 @@ public class SchemaGenerationContext {
       return property;
     }
 
+    public Value storeSwap(Key key, Value swap) {
+      if (storedSwaps == null) {
+        storedSwaps = new HashMap<>();
+      }
+      return storedSwaps.put(key, swap);
+    }
+
+    public Map<Key, Value> restoreSwapsTo(Map<Key, Value> swaps) {
+      if (storedSwaps == null) {
+        return Collections.emptyMap();
+      }
+
+      Map<Key, Value> oldValues = new HashMap<>(storedSwaps.size());
+      storedSwaps.forEach((key, value) -> oldValues.put(key, swaps.put(key, value)));
+      return oldValues;
+    }
+
     @Override
     public boolean equals(Object o) {
       if (this == o) {
@@ -216,7 +221,7 @@ public class SchemaGenerationContext {
       if (o == null || getClass() != o.getClass()) {
         return false;
       }
-      PropertyOnType that = (PropertyOnType) o;
+      HierarchyLevel that = (HierarchyLevel) o;
       return Objects.equals(type, that.type) && Objects.equals(property, that.property);
     }
 
