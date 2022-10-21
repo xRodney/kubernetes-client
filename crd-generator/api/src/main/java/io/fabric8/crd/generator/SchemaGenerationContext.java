@@ -16,7 +16,6 @@
 package io.fabric8.crd.generator;
 
 import io.sundr.model.ClassRef;
-import io.sundr.model.Property;
 import io.sundr.model.TypeDef;
 import io.sundr.model.TypeRef;
 
@@ -32,14 +31,36 @@ public class SchemaGenerationContext {
   private final Map<Key, Value> swaps = new HashMap<>();
   private final TypeRef root;
   private final LinkedList<PropertyOnType> path = new LinkedList<>();
+  // swapsPerLevel follows the same structure as path, but has one null entry at the beginning
+  private final LinkedList<Map<Key, Value>> overridenSwapsPerLevel = new LinkedList<>();
 
   public SchemaGenerationContext(TypeRef root) {
     this.root = root;
+    overridenSwapsPerLevel.addLast(null);
   }
 
   public void registerSwap(ClassRef definitionType, ClassRef originalType, String fieldName, ClassRef targetType) {
     Value value = new Value(definitionType, originalType, fieldName, targetType);
-    swaps.put(new Key(originalType, fieldName), value);
+    Key key = new Key(originalType, fieldName);
+    Value previous = swaps.put(key, value);
+
+    if (previous != null) {
+      Map<Key, Value> currentSwaps = getCurrentLevelOverridenSwaps();
+      Value conflict = currentSwaps.put(key, previous);
+      if (conflict != null) {
+        throw new IllegalArgumentException("Conflicting SchemaSwaps");
+      }
+    }
+  }
+
+  private Map<Key, Value> getCurrentLevelOverridenSwaps() {
+    Map<Key, Value> currentSwaps = overridenSwapsPerLevel.getLast();
+    if (currentSwaps == null) {
+      currentSwaps = new HashMap<>();
+      overridenSwapsPerLevel.removeLast();
+      overridenSwapsPerLevel.addLast(currentSwaps);
+    }
+    return currentSwaps;
   }
 
   public Optional<ClassRef> lookupAndMark(ClassRef originalType, String name) {
@@ -68,10 +89,15 @@ public class SchemaGenerationContext {
       throw new IllegalArgumentException("Found a cyclic reference: " + renderCurrentPath() + " ??? " + propertyOnType);
     }
     path.addLast(propertyOnType);
+    overridenSwapsPerLevel.push(null);
   }
 
   public void popLevel() {
     path.removeLast();
+    Map<Key, Value> currentSwaps = overridenSwapsPerLevel.removeLast();
+    if (currentSwaps != null) {
+      swaps.putAll(currentSwaps);
+    }
   }
 
   private String renderCurrentPath() {
