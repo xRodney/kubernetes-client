@@ -21,6 +21,7 @@ import io.fabric8.crd.example.basic.BasicStatus;
 import io.fabric8.crd.example.cyclic.Cyclic;
 import io.fabric8.crd.example.cyclic.CyclicList;
 import io.fabric8.crd.example.extraction.ConflictingSchemaSwaps;
+import io.fabric8.crd.example.extraction.ConstrainedSchemaSwaps;
 import io.fabric8.crd.example.extraction.OverlappingSchemaSwaps;
 import io.fabric8.crd.example.inherited.*;
 import io.fabric8.crd.example.joke.Joke;
@@ -444,6 +445,49 @@ class CRDGeneratorTest {
       JSONSchemaProps prop5 = checkProp.apply("prop5");
       assertNull(prop5.getXKubernetesPreserveUnknownFields());
       assertEquals("string", prop5.getType());
+    });
+  }
+
+
+  @Test
+  void constrainedSchemaSwaps() {
+    outputCRDIfFailed(OverlappingSchemaSwaps.class, (customResource) -> {
+      CustomResourceDefinitionVersion version = checkCRD(ConstrainedSchemaSwaps.class, "ConstrainedSchemaSwaps", "constrainedschemaswaps",
+        Scope.NAMESPACED);
+      assertNull(version.getSubresources());
+
+      final Map<String, JSONSchemaProps> specProps = version.getSchema().getOpenAPIV3Schema()
+        .getProperties().get("spec").getProperties();
+
+      assertEquals(5, specProps.size());
+
+      Function<String, JSONSchemaProps> checkProp = (name) -> {
+        final JSONSchemaProps props = specProps.get(name);
+        assertNotNull(props, name + " should be contained in spec");
+        assertEquals("object", props.getType(), name + "'s type should be object");
+        JSONSchemaProps myObject = props.getProperties().get("myObject");
+        assertEquals("object", myObject.getType(), name + "'s myObject type should be object");
+        return myObject.getProperties().get("joker");
+      };
+
+      JSONSchemaProps prop1 = checkProp.apply("prop1");
+      assertNull(prop1.getXKubernetesPreserveUnknownFields());
+      assertEquals("integer", prop1.getType());
+
+      JSONSchemaProps prop2 = checkProp.apply("prop2");
+      assertNull(prop2.getXKubernetesPreserveUnknownFields());
+      assertEquals("integer", prop2.getType());
+
+      JSONSchemaProps prop3 = checkProp.apply("prop3");
+      assertTrue(prop3.getXKubernetesPreserveUnknownFields());
+
+      JSONSchemaProps prop4 = checkProp.apply("prop4");
+      assertNull(prop4.getXKubernetesPreserveUnknownFields());
+      assertEquals("integer", prop4.getType());
+
+      JSONSchemaProps prop5 = checkProp.apply("prop5");
+      assertNull(prop5.getXKubernetesPreserveUnknownFields());
+      assertEquals("integer", prop5.getType());
     });
   }
 
