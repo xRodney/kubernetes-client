@@ -15,12 +15,9 @@
  */
 package io.fabric8.crd.generator;
 
-import io.sundr.model.ClassRef;
-import io.sundr.model.Property;
-import io.sundr.model.TypeDef;
-import io.sundr.model.TypeRef;
-
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Objects;
@@ -28,54 +25,62 @@ import java.util.Optional;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
-public class SchemaGenerationContext {
-  private final Map<Key, Value> swaps = new HashMap<>();
-  private final TypeRef root;
-  private final LinkedList<PropertyOnType> path = new LinkedList<>();
+import io.sundr.model.ClassRef;
+import io.sundr.model.Property;
+import io.sundr.model.TypeRef;
 
-  public SchemaGenerationContext(TypeRef root) {
-    this.root = root;
+public class SchemaGenerationContext {
+  private final LinkedList<Level> hierarchy = new LinkedList<>();
+
+  public SchemaGenerationContext(TypeRef rootType) {
+    hierarchy.addLast(Level.root(rootType));
   }
 
-  public void registerSwap(ClassRef definitionType, ClassRef originalType, String fieldName, ClassRef targetType) {
-    Value value = new Value(definitionType, originalType, fieldName, targetType);
-    swaps.put(new Key(originalType, fieldName), value);
+  public void registerSwap(ClassRef definitionType, SchemaSwapModel swap) {
+    Value value = new Value(definitionType, swap.originalType, swap.fieldName, swap.targetType);
+    Key key = new Key(swap.originalType, swap.fieldName);
+    hierarchy.getLast().addSwap(key, value);
   }
 
   public Optional<ClassRef> lookupAndMark(ClassRef originalType, String name) {
-    Value value = swaps.get(new Key(originalType, name));
-    if (value != null) {
-      value.markUsed();
-      return Optional.of(value.getTargetType());
-    } else {
-      return Optional.empty();
+    Key key = new Key(originalType, name);
+
+    Iterator<Level> iterator = hierarchy.descendingIterator();
+    while (iterator.hasNext()) {
+      Level level = iterator.next();
+      Value value = level.getSwaps().get(key);
+      if (value != null) {
+        value.markUsed();
+        return Optional.of(value.getTargetType());
+      }
+    }
+
+    return Optional.empty();
+  }
+
+  public void close() {
+    popLevel();
+    if (!hierarchy.isEmpty()) {
+      throw new IllegalStateException("Hierarchy should be empty by now");
     }
   }
 
-  public void throwIfUnmatchedSwaps() {
-    String unmatchedSchemaSwaps = swaps.values().stream().filter(value -> !value.used)
-        .map(Object::toString)
-        .collect(Collectors.joining(", "));
-    if (!unmatchedSchemaSwaps.isEmpty()) {
-      throw new IllegalArgumentException("Unmatched SchemaSwaps: " + unmatchedSchemaSwaps);
-    }
-  }
-
-  public void pushLevel(TypeDef type, String property) {
-    PropertyOnType propertyOnType = new PropertyOnType(type.getFullyQualifiedName(), property);
-    long count = path.stream().filter(p -> p.equals(propertyOnType)).count();
+  public void pushLevel(Property property) {
+    Level level = new Level(property);
+    long count = hierarchy.stream().filter(p -> p.equals(level)).count();
     if (count > 0) {
-      throw new IllegalArgumentException("Found a cyclic reference: " + renderCurrentPath() + " ??? " + propertyOnType);
+      throw new IllegalArgumentException("Found a cyclic reference: " + renderCurrentPath() + " !! " + level);
     }
-    path.addLast(propertyOnType);
+    hierarchy.addLast(level);
   }
 
   public void popLevel() {
-    path.removeLast();
+    Level level = hierarchy.removeLast();
+    level.throwIfUnmatchedSwaps();
   }
 
   private String renderCurrentPath() {
-    return path.stream()
+    return hierarchy.stream()
         .map(Object::toString)
         .collect(Collectors.joining(" -> "));
   }
@@ -165,21 +170,72 @@ public class SchemaGenerationContext {
     }
   }
 
-  private static class PropertyOnType {
-    private final String type;
-    private final String property;
+  public static class SchemaSwapModel {
+    private final ClassRef originalType;
+    private final String fieldName;
+    private final ClassRef targetType;
 
-    public PropertyOnType(String type, String property) {
-      this.type = type;
+    public SchemaSwapModel(ClassRef originalType, String fieldName, ClassRef targetType) {
+      this.originalType = originalType;
+      this.fieldName = fieldName;
+      this.targetType = targetType;
+    }
+
+    public ClassRef getOriginalType() {
+      return originalType;
+    }
+
+    public String getFieldName() {
+      return fieldName;
+    }
+
+    public ClassRef getTargetType() {
+      return targetType;
+    }
+
+    @Override
+    public String toString() {
+      return "@SchemaSwap(originalType=" + originalType + ", fieldName=\"" + fieldName + "\", targetType=" + targetType + ")";
+    }
+  }
+
+  private static class Level {
+    private final Property property;
+    private Map<Key, Value> swaps;
+
+    public static Level root(TypeRef rootType) {
+      Property root = new Property(Collections.emptyList(), rootType, "", Collections.emptyList(), null, Collections.emptyMap());
+      return new Level(root);
+    }
+
+    public Level(Property property) {
       this.property = property;
     }
 
-    public String getType() {
-      return type;
+    public Map<Key, Value> getSwaps() {
+      return swaps == null ? Collections.emptyMap() : swaps;
     }
 
-    public String getProperty() {
+    public void addSwap(Key key, Value value) {
+      if (swaps == null) {
+        swaps = new HashMap<>();
+      }
+      swaps.put(key, value);
+    }
+
+    public Property getProperty() {
       return property;
+    }
+
+    public void throwIfUnmatchedSwaps() {
+      if (swaps != null) {
+        String unmatchedSchemaSwaps = swaps.values().stream().filter(value -> !value.used)
+          .map(Object::toString)
+          .collect(Collectors.joining(", "));
+        if (!unmatchedSchemaSwaps.isEmpty()) {
+          throw new IllegalArgumentException("Unmatched SchemaSwaps: " + unmatchedSchemaSwaps);
+        }
+      }
     }
 
     @Override
@@ -190,18 +246,19 @@ public class SchemaGenerationContext {
       if (o == null || getClass() != o.getClass()) {
         return false;
       }
-      PropertyOnType that = (PropertyOnType) o;
-      return Objects.equals(type, that.type) && Objects.equals(property, that.property);
+      Level level = (Level) o;
+      return Objects.equals(property, level.property);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(type, property);
+      return Objects.hash(property);
     }
 
     @Override
     public String toString() {
-      return type + "#" + property;
+      String name = property.getName();
+      return (name.isEmpty() ? "" : name + ": ") + property.getTypeRef();
     }
   }
 }

@@ -184,7 +184,7 @@ public abstract class AbstractJsonSchema<T, B> {
   protected T internalFrom(TypeDef definition, String... ignore) {
     SchemaGenerationContext context = new SchemaGenerationContext(definition.toReference());
     T ret = internalFromImpl(definition, context, ignore);
-    context.throwIfUnmatchedSwaps();
+    context.close();
     return ret;
   }
 
@@ -222,17 +222,19 @@ public abstract class AbstractJsonSchema<T, B> {
     if (annotation instanceof SchemaSwap) {
       SchemaSwap schemaSwap = (SchemaSwap) annotation;
       context.registerSwap(definitionType,
+        new SchemaGenerationContext.SchemaSwapModel(
           extractClassRef(schemaSwap.originalType()),
           schemaSwap.fieldName(),
-          extractClassRef(schemaSwap.targetType()));
+          extractClassRef(schemaSwap.targetType())));
 
     } else if (annotation instanceof AnnotationRef
         && ((AnnotationRef) annotation).getClassRef().getFullyQualifiedName().equals(ANNOTATION_SCHEMA_SWAP)) {
       Map<String, Object> params = ((AnnotationRef) annotation).getParameters();
       context.registerSwap(definitionType,
+        new SchemaGenerationContext.SchemaSwapModel(
           extractClassRef(params.get("originalType")),
           (String) params.get("fieldName"),
-          extractClassRef(params.getOrDefault("targetType", void.class)));
+          extractClassRef(params.getOrDefault("targetType", void.class))));
 
     } else {
       throw new IllegalArgumentException("Unmanaged annotation type passed to the SchemaSwaps: " + annotation);
@@ -276,7 +278,7 @@ public abstract class AbstractJsonSchema<T, B> {
         continue;
       }
 
-      context.pushLevel(definition, property.getName());
+      context.pushLevel(property);
       final T schema = internalFromImpl(name, possiblyRenamedProperty.getTypeRef(), context);
       context.popLevel();
 
