@@ -36,6 +36,7 @@ import io.fabric8.crd.example.nocyclic.NoCyclic;
 import io.fabric8.crd.example.simplest.Simplest;
 import io.fabric8.crd.example.simplest.SimplestSpec;
 import io.fabric8.crd.example.simplest.SimplestStatus;
+import io.fabric8.crd.example.unroll.Unroll;
 import io.fabric8.crd.generator.CRDGenerator.AbstractCRDOutput;
 import io.fabric8.crd.generator.utils.Types;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.*;
@@ -254,6 +255,41 @@ class CRDGeneratorTest {
 
     CRDGenerationInfo info = generator.detailedGenerate();
     assertEquals(2, info.numberOfGeneratedCRDs());
+  }
+
+  @Test
+  void schemaUnrollOnFieldsShouldWork() {
+    outputCRDIfFailed(Unroll.class, (customResource) -> {
+      final CustomResourceDefinitionVersion version = checkCRD(customResource, "Unroll", "unrolls",
+        Scope.NAMESPACED, Unroll.class);
+      final Map<String, JSONSchemaProps> specProps = version.getSchema().getOpenAPIV3Schema()
+        .getProperties().get("spec").getProperties();
+      assertEquals(4, specProps.size());
+
+      int unrollDepth = 0;
+      for (JSONSchemaProps ref1 = specProps.get("ref1"); ref1 != null; ref1 = ref1.getProperties().get("ref1") ) {
+        assertEquals("object", ref1.getType());
+        assertEquals("integer", ref1.getProperties().get("number").getType());
+        unrollDepth++;
+      }
+      assertEquals(3, unrollDepth, "ref1 should be unrolled 3 times");
+
+      unrollDepth = 0;
+      for (JSONSchemaProps ref2 = specProps.get("ref2"); ref2 != null; ref2 = ref2.getItems().getSchema().getProperties().get("ref2") ) {
+        assertEquals("array", ref2.getType());
+        assertEquals("integer", ref2.getItems().getSchema().getProperties().get("number").getType());
+        unrollDepth++;
+      }
+      assertEquals(3, unrollDepth, "ref2 should be unrolled 3 times");
+
+      unrollDepth = 0;
+      for (JSONSchemaProps ref3 = specProps.get("ref3"); ref3 != null; ref3 = ref3.getAdditionalProperties().getSchema().getProperties().get("ref3") ) {
+        assertEquals("object", ref3.getType());
+        assertEquals("integer", ref3.getAdditionalProperties().getSchema().getProperties().get("number").getType());
+        unrollDepth++;
+      }
+      assertEquals(3, unrollDepth, "ref3 should be unrolled 3 times");
+    });
   }
 
   @FunctionalInterface

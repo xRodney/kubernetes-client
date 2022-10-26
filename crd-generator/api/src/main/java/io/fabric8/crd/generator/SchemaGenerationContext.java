@@ -25,11 +25,15 @@ import java.util.Optional;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
+import io.sundr.model.AttributeKey;
 import io.sundr.model.ClassRef;
 import io.sundr.model.Property;
+import io.sundr.model.PropertyBuilder;
 import io.sundr.model.TypeRef;
 
 public class SchemaGenerationContext {
+  public static final AttributeKey<SchemaUnrollModel> ATTRIBUTE_SCHEMA_UNROLL = new AttributeKey<>(SchemaUnrollModel.class);
+
   private final LinkedList<Level> hierarchy = new LinkedList<>();
 
   public SchemaGenerationContext(TypeRef rootType) {
@@ -38,14 +42,14 @@ public class SchemaGenerationContext {
 
   public void registerSwap(ClassRef definitionType, SchemaSwapModel swap) {
     Key key = new Key(swap.originalType, swap.fieldName);
-    Value value = new Value(definitionType, swap.originalType, swap.fieldName, swap.targetType);
+    Value value = new Value(swap, definitionType);
     Value conflict = hierarchy.getLast().addSwap(key, value);
     if (conflict != null) {
       throw new IllegalArgumentException("Conflict");
     }
   }
 
-  public Optional<ClassRef> lookupAndMark(ClassRef originalType, String name) {
+  public Optional<SchemaSwapModel> lookupAndMark(ClassRef originalType, String name) {
     Key key = new Key(originalType, name);
 
     Iterator<Level> iterator = hierarchy.descendingIterator();
@@ -54,7 +58,7 @@ public class SchemaGenerationContext {
       Value value = level.getSwaps().get(key);
       if (value != null) {
         value.markUsed();
-        return Optional.of(value.getTargetType());
+        return Optional.of(value.getSwap());
       }
     }
 
@@ -68,13 +72,22 @@ public class SchemaGenerationContext {
     }
   }
 
-  public void pushLevel(Property property) {
-    Level level = new Level(property);
-    long count = hierarchy.stream().filter(p -> p.equals(level)).count();
-    if (count > 0) {
-      throw new IllegalArgumentException("Found a cyclic reference: " + renderCurrentPath() + " !! " + level);
+  public Property pushLevel(Property property) {
+    SchemaUnrollModel unroll = property.getAttribute(ATTRIBUTE_SCHEMA_UNROLL);
+    final Property result;
+
+    long count = hierarchy.stream().filter(p -> p.hasProperty(property)).count();
+    result = count > unroll.getDepth() ? terminatePropertyOrThrow(property, unroll) : property;
+
+    hierarchy.addLast(new Level(result));
+    return result;
+  }
+
+  private Property terminatePropertyOrThrow(Property property, SchemaUnrollModel unroll) {
+    if (unroll.getDepth() <= 0) {
+      throw new IllegalArgumentException("Found a cyclic reference: " + renderCurrentPath() + " !! " + new Level(property));
     }
-    hierarchy.addLast(level);
+    return new PropertyBuilder(property).withTypeRef(unroll.getTerminator()).build();
   }
 
   public void popLevel() {
@@ -132,34 +145,22 @@ public class SchemaGenerationContext {
   }
 
   private static class Value {
-    private final ClassRef originalType;
-    private final String fieldName;
-    private final ClassRef targetType;
     private boolean used;
     private final ClassRef definitionType;
+    private final SchemaSwapModel swap;
 
-    public Value(ClassRef definitionType, ClassRef originalType, String fieldName, ClassRef targetType) {
+    public Value(SchemaSwapModel swap, ClassRef definitionType) {
+      this.swap = swap;
       this.definitionType = definitionType;
-      this.originalType = originalType;
-      this.fieldName = fieldName;
-      this.targetType = targetType;
       this.used = false;
+    }
+
+    public SchemaSwapModel getSwap() {
+      return swap;
     }
 
     private void markUsed() {
       this.used = true;
-    }
-
-    public ClassRef getOriginalType() {
-      return originalType;
-    }
-
-    public String getFieldName() {
-      return fieldName;
-    }
-
-    public ClassRef getTargetType() {
-      return targetType;
     }
 
     public boolean isUsed() {
@@ -168,8 +169,7 @@ public class SchemaGenerationContext {
 
     @Override
     public String toString() {
-      return "@SchemaSwap(originalType=" + originalType + ", fieldName=\"" + fieldName + "\", targetType=" + targetType
-          + ") on " + definitionType;
+      return swap + " on " + definitionType;
     }
   }
 
@@ -177,11 +177,13 @@ public class SchemaGenerationContext {
     private final ClassRef originalType;
     private final String fieldName;
     private final ClassRef targetType;
+    private final SchemaUnrollModel unroll;
 
-    public SchemaSwapModel(ClassRef originalType, String fieldName, ClassRef targetType) {
+    public SchemaSwapModel(ClassRef originalType, String fieldName, ClassRef targetType, SchemaUnrollModel unroll) {
       this.originalType = originalType;
       this.fieldName = fieldName;
       this.targetType = targetType;
+      this.unroll = unroll;
     }
 
     public ClassRef getOriginalType() {
@@ -196,9 +198,39 @@ public class SchemaGenerationContext {
       return targetType;
     }
 
+    public SchemaUnrollModel getUnroll() {
+      return unroll;
+    }
+
     @Override
     public String toString() {
       return "@SchemaSwap(originalType=" + originalType + ", fieldName=\"" + fieldName + "\", targetType=" + targetType + ")";
+    }
+  }
+
+  public static class SchemaUnrollModel {
+    private final int depth;
+    private final TypeRef terminator;
+
+    public SchemaUnrollModel(int depth, TypeRef terminator) {
+      this.depth = depth;
+      this.terminator = terminator;
+    }
+
+    public int getDepth() {
+      return depth;
+    }
+
+    public TypeRef getTerminator() {
+      return terminator;
+    }
+
+    @Override
+    public String toString() {
+      return new StringJoiner(", ", SchemaUnrollModel.class.getSimpleName() + "[", "]")
+        .add("depth=" + depth)
+        .add("terminator=" + terminator)
+        .toString();
     }
   }
 
@@ -239,6 +271,10 @@ public class SchemaGenerationContext {
           throw new IllegalArgumentException("Unmatched SchemaSwaps: " + unmatchedSchemaSwaps);
         }
       }
+    }
+
+    public boolean hasProperty(Property property) {
+      return Objects.equals(this.property, property);
     }
 
     @Override

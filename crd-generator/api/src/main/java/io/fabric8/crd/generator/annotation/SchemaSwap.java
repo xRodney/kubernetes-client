@@ -52,4 +52,6 @@ public @interface SchemaSwap {
    * The default value of {@code void.class} causes the field to be skipped
    */
   Class<?> targetType() default void.class;
+
+  SchemaUnroll unroll() default @SchemaUnroll(depth = 0, terminator = void.class);
 }
