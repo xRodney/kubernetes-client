@@ -525,8 +525,9 @@ public abstract class AbstractJsonSchema<T, B> {
         propertyOrAccessors.add(PropertyOrAccessor.fromMethod(method, name));
       }
       if (schemaSwap != null) {
+        ignored = schemaSwap.isIgnored();
         schemaFrom = schemaSwap.getTargetType();
-        ignored = schemaSwap.getTargetType().getFullyQualifiedName().equals(VOID.getName());
+        unroll = schemaSwap.getUnroll();
       }
       min = null;
       max = null;

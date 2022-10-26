@@ -31,6 +31,8 @@ import io.sundr.model.Property;
 import io.sundr.model.PropertyBuilder;
 import io.sundr.model.TypeRef;
 
+import static io.sundr.model.utils.Types.VOID;
+
 public class SchemaGenerationContext {
   public static final AttributeKey<SchemaUnrollModel> ATTRIBUTE_SCHEMA_UNROLL = new AttributeKey<>(SchemaUnrollModel.class);
 
@@ -84,7 +86,7 @@ public class SchemaGenerationContext {
   }
 
   private Property terminatePropertyOrThrow(Property property, SchemaUnrollModel unroll) {
-    if (unroll.getDepth() <= 0) {
+    if (!unroll.isDefined()) {
       throw new IllegalArgumentException("Found a cyclic reference: " + renderCurrentPath() + " !! " + new Level(property));
     }
     return new PropertyBuilder(property).withTypeRef(unroll.getTerminator()).build();
@@ -177,13 +179,21 @@ public class SchemaGenerationContext {
     private final ClassRef originalType;
     private final String fieldName;
     private final ClassRef targetType;
+    private final boolean ignored;
     private final SchemaUnrollModel unroll;
 
     public SchemaSwapModel(ClassRef originalType, String fieldName, ClassRef targetType, SchemaUnrollModel unroll) {
       this.originalType = originalType;
       this.fieldName = fieldName;
-      this.targetType = targetType;
       this.unroll = unroll;
+
+      if (VOID.getName().equals(targetType.getFullyQualifiedName())) {
+        this.targetType = null;
+        this.ignored = !unroll.isDefined();
+      } else {
+        this.targetType = targetType;
+        this.ignored = false;
+      }
     }
 
     public ClassRef getOriginalType() {
@@ -200,6 +210,10 @@ public class SchemaGenerationContext {
 
     public SchemaUnrollModel getUnroll() {
       return unroll;
+    }
+
+    public boolean isIgnored() {
+      return ignored;
     }
 
     @Override
@@ -223,6 +237,10 @@ public class SchemaGenerationContext {
 
     public TypeRef getTerminator() {
       return terminator;
+    }
+
+    public boolean isDefined() {
+      return depth > 0;
     }
 
     @Override
