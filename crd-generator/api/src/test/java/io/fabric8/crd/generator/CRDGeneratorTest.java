@@ -58,7 +58,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -268,31 +268,13 @@ class CRDGeneratorTest {
           .getProperties().get("spec").getProperties();
       assertEquals(4, specProps.size());
 
-      int unrollDepth = 0;
-      for (JSONSchemaProps ref1 = specProps.get("ref1"); ref1 != null; ref1 = ref1.getProperties().get("ref1")) {
-        assertEquals("object", ref1.getType());
-        assertEquals("integer", ref1.getProperties().get("number").getType());
-        unrollDepth++;
-      }
-      assertEquals(3, unrollDepth, "ref1 should be unrolled 3 times");
+      Consumer<JSONSchemaProps> assertLevel = props -> {
+        assertEquals("integer", props.getProperties().get("number").getType());
+      };
 
-      unrollDepth = 0;
-      for (JSONSchemaProps ref2 = specProps.get("ref2"); ref2 != null; ref2 = ref2.getItems().getSchema().getProperties()
-          .get("ref2")) {
-        assertEquals("array", ref2.getType());
-        assertEquals("integer", ref2.getItems().getSchema().getProperties().get("number").getType());
-        unrollDepth++;
-      }
-      assertEquals(3, unrollDepth, "ref2 should be unrolled 3 times");
-
-      unrollDepth = 0;
-      for (JSONSchemaProps ref3 = specProps.get("ref3"); ref3 != null; ref3 = ref3.getAdditionalProperties().getSchema()
-          .getProperties().get("ref3")) {
-        assertEquals("object", ref3.getType());
-        assertEquals("integer", ref3.getAdditionalProperties().getSchema().getProperties().get("number").getType());
-        unrollDepth++;
-      }
-      assertEquals(3, unrollDepth, "ref3 should be unrolled 3 times");
+      assertUnroll(specProps, "ref1", 3, Function.identity(), assertLevel);
+      assertUnroll(specProps, "ref2", 3, props -> props.getItems().getSchema(), assertLevel);
+      assertUnroll(specProps, "ref3", 3, props -> props.getAdditionalProperties().getSchema(), assertLevel);
     });
   }
 
@@ -305,31 +287,13 @@ class CRDGeneratorTest {
           .getProperties().get("spec").getProperties();
       assertEquals(4, specProps.size());
 
-      int unrollDepth = 0;
-      for (JSONSchemaProps ref1 = specProps.get("ref1"); ref1 != null; ref1 = ref1.getProperties().get("ref1")) {
-        assertEquals("object", ref1.getType());
-        assertEquals("integer", ref1.getProperties().get("number").getType());
-        unrollDepth++;
-      }
-      assertEquals(3, unrollDepth, "ref1 should be unrolled 3 times");
+      Consumer<JSONSchemaProps> assertLevel = props -> {
+        assertEquals("integer", props.getProperties().get("number").getType());
+      };
 
-      unrollDepth = 0;
-      for (JSONSchemaProps ref2 = specProps.get("ref2"); ref2 != null; ref2 = ref2.getItems().getSchema().getProperties()
-          .get("ref2")) {
-        assertEquals("array", ref2.getType());
-        assertEquals("integer", ref2.getItems().getSchema().getProperties().get("number").getType());
-        unrollDepth++;
-      }
-      assertEquals(3, unrollDepth, "ref2 should be unrolled 3 times");
-
-      unrollDepth = 0;
-      for (JSONSchemaProps ref3 = specProps.get("ref3"); ref3 != null; ref3 = ref3.getAdditionalProperties().getSchema()
-          .getProperties().get("ref3")) {
-        assertEquals("object", ref3.getType());
-        assertEquals("integer", ref3.getAdditionalProperties().getSchema().getProperties().get("number").getType());
-        unrollDepth++;
-      }
-      assertEquals(3, unrollDepth, "ref3 should be unrolled 3 times");
+      assertUnroll(specProps, "ref1", 3, Function.identity(), assertLevel);
+      assertUnroll(specProps, "ref2", 3, props -> props.getItems().getSchema(), assertLevel);
+      assertUnroll(specProps, "ref3", 3, props -> props.getAdditionalProperties().getSchema(), assertLevel);
     });
   }
 
@@ -342,39 +306,42 @@ class CRDGeneratorTest {
           .getProperties().get("spec").getProperties();
       assertEquals(4, specProps.size());
 
-      int unrollDepth = 0;
-      JSONSchemaProps ref1;
-      for (ref1 = specProps.get("ref1"); ref1.getXKubernetesPreserveUnknownFields() == null; ref1 = ref1.getProperties()
-          .get("ref1")) {
-        assertEquals("object", ref1.getType());
-        assertEquals("integer", ref1.getProperties().get("number").getType());
-        unrollDepth++;
-      }
-      assertEquals(Boolean.TRUE, ref1.getXKubernetesPreserveUnknownFields());
-      assertEquals(3, unrollDepth, "ref1 should be unrolled 3 times");
+      Consumer<JSONSchemaProps> assertLevel = props -> {
+        assertEquals("integer", props.getProperties().get("number").getType());
+      };
 
-      unrollDepth = 0;
-      JSONSchemaProps ref2;
-      for (ref2 = specProps.get("ref2"); ref2.getItems() != null; ref2 = ref2.getItems().getSchema().getProperties()
-          .get("ref2")) {
-        assertEquals("array", ref2.getType());
-        assertEquals("integer", ref2.getItems().getSchema().getProperties().get("number").getType());
-        unrollDepth++;
-      }
-      assertEquals(Boolean.TRUE, ref2.getXKubernetesPreserveUnknownFields());
-      assertEquals(3, unrollDepth, "ref2 should be unrolled 3 times");
+      JSONSchemaProps ref1 = assertUnroll(specProps, "ref1", 3, Function.identity(), assertLevel);
+      assertEquals(Boolean.TRUE, ref1.getProperties().get("ref1").getXKubernetesPreserveUnknownFields());
 
-      unrollDepth = 0;
-      JSONSchemaProps ref3;
-      for (ref3 = specProps.get("ref3"); ref3.getAdditionalProperties() != null; ref3 = ref3.getAdditionalProperties()
-          .getSchema().getProperties().get("ref3")) {
-        assertEquals("object", ref3.getType());
-        assertEquals("integer", ref3.getAdditionalProperties().getSchema().getProperties().get("number").getType());
-        unrollDepth++;
-      }
-      assertEquals(Boolean.TRUE, ref3.getXKubernetesPreserveUnknownFields());
-      assertEquals(3, unrollDepth, "ref3 should be unrolled 3 times");
+      JSONSchemaProps ref2 = assertUnroll(specProps, "ref2", 3, props -> props.getItems().getSchema(), assertLevel);
+      assertEquals(Boolean.TRUE, ref2.getProperties().get("ref2").getXKubernetesPreserveUnknownFields());
+
+      JSONSchemaProps ref3 = assertUnroll(specProps, "ref3", 3, props -> props.getAdditionalProperties().getSchema(),
+          assertLevel);
+      assertEquals(Boolean.TRUE, ref3.getProperties().get("ref3").getXKubernetesPreserveUnknownFields());
     });
+  }
+
+  private JSONSchemaProps assertUnroll(Map<String, JSONSchemaProps> rootProps,
+      String name,
+      int expectedDepth,
+      Function<JSONSchemaProps, JSONSchemaProps> nextProps,
+      Consumer<JSONSchemaProps> assertLevel) {
+    JSONSchemaProps props = rootProps.get(name);
+    assertNotNull(props, name + " must be contained at least at the root level");
+
+    JSONSchemaProps next = null;
+    int unrollDepth = 0;
+    while (props != null && props.getType() != null) {
+      next = nextProps.apply(props);
+      assertLevel.accept(next);
+
+      props = next.getProperties().get(name);
+      unrollDepth++;
+    }
+
+    assertEquals(expectedDepth, unrollDepth, name + " should be unrolled " + expectedDepth + " times");
+    return next;
   }
 
   @FunctionalInterface
