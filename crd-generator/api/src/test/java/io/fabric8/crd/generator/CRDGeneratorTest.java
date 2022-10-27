@@ -225,9 +225,9 @@ class CRDGeneratorTest {
         "An IllegalArgument Exception hasn't been thrown when generating a CRD with cyclic references");
 
     assertEquals("Found a cyclic reference: io.fabric8.crd.example.cyclic.Cyclic "
-      + "-> spec: io.fabric8.crd.example.cyclic.CyclicSpec "
-      + "-> ref: io.fabric8.crd.example.cyclic.Ref "
-      + "!! ref: io.fabric8.crd.example.cyclic.Ref", exception.getMessage());
+        + "-> spec: io.fabric8.crd.example.cyclic.CyclicSpec "
+        + "-> ref: io.fabric8.crd.example.cyclic.Ref "
+        + "!! ref: io.fabric8.crd.example.cyclic.Ref", exception.getMessage());
   }
 
   @Test
@@ -243,9 +243,9 @@ class CRDGeneratorTest {
         "An IllegalArgument Exception hasn't been thrown when generating a CRD with cyclic references");
 
     assertEquals("Found a cyclic reference: io.fabric8.crd.example.cyclic.CyclicList "
-      + "-> spec: io.fabric8.crd.example.cyclic.CyclicListSpec "
-      + "-> ref: java.util.List<io.fabric8.crd.example.cyclic.RefList> "
-      + "!! ref: java.util.List<io.fabric8.crd.example.cyclic.RefList>", exception.getMessage());
+        + "-> spec: io.fabric8.crd.example.cyclic.CyclicListSpec "
+        + "-> ref: java.util.List<io.fabric8.crd.example.cyclic.RefList> "
+        + "!! ref: java.util.List<io.fabric8.crd.example.cyclic.RefList>", exception.getMessage());
   }
 
   @Test
@@ -263,13 +263,13 @@ class CRDGeneratorTest {
   void schemaUnrollOnFieldsShouldWork() {
     outputCRDIfFailed(Unroll.class, (customResource) -> {
       final CustomResourceDefinitionVersion version = checkCRD(customResource, "Unroll", "unrolls",
-        Scope.NAMESPACED, Unroll.class);
+          Scope.NAMESPACED, Unroll.class);
       final Map<String, JSONSchemaProps> specProps = version.getSchema().getOpenAPIV3Schema()
-        .getProperties().get("spec").getProperties();
+          .getProperties().get("spec").getProperties();
       assertEquals(4, specProps.size());
 
       int unrollDepth = 0;
-      for (JSONSchemaProps ref1 = specProps.get("ref1"); ref1 != null; ref1 = ref1.getProperties().get("ref1") ) {
+      for (JSONSchemaProps ref1 = specProps.get("ref1"); ref1 != null; ref1 = ref1.getProperties().get("ref1")) {
         assertEquals("object", ref1.getType());
         assertEquals("integer", ref1.getProperties().get("number").getType());
         unrollDepth++;
@@ -277,7 +277,8 @@ class CRDGeneratorTest {
       assertEquals(3, unrollDepth, "ref1 should be unrolled 3 times");
 
       unrollDepth = 0;
-      for (JSONSchemaProps ref2 = specProps.get("ref2"); ref2 != null; ref2 = ref2.getItems().getSchema().getProperties().get("ref2") ) {
+      for (JSONSchemaProps ref2 = specProps.get("ref2"); ref2 != null; ref2 = ref2.getItems().getSchema().getProperties()
+          .get("ref2")) {
         assertEquals("array", ref2.getType());
         assertEquals("integer", ref2.getItems().getSchema().getProperties().get("number").getType());
         unrollDepth++;
@@ -285,7 +286,8 @@ class CRDGeneratorTest {
       assertEquals(3, unrollDepth, "ref2 should be unrolled 3 times");
 
       unrollDepth = 0;
-      for (JSONSchemaProps ref3 = specProps.get("ref3"); ref3 != null; ref3 = ref3.getAdditionalProperties().getSchema().getProperties().get("ref3") ) {
+      for (JSONSchemaProps ref3 = specProps.get("ref3"); ref3 != null; ref3 = ref3.getAdditionalProperties().getSchema()
+          .getProperties().get("ref3")) {
         assertEquals("object", ref3.getType());
         assertEquals("integer", ref3.getAdditionalProperties().getSchema().getProperties().get("number").getType());
         unrollDepth++;
@@ -293,19 +295,18 @@ class CRDGeneratorTest {
       assertEquals(3, unrollDepth, "ref3 should be unrolled 3 times");
     });
   }
-
 
   @Test
   void schemaUnrollOnSchemaSwapShouldWork() {
     outputCRDIfFailed(UnrollOnSchemaSwap.class, (customResource) -> {
       final CustomResourceDefinitionVersion version = checkCRD(customResource, "UnrollOnSchemaSwap", "unrollonschemaswaps",
-        Scope.NAMESPACED, UnrollOnSchemaSwap.class);
+          Scope.NAMESPACED, UnrollOnSchemaSwap.class);
       final Map<String, JSONSchemaProps> specProps = version.getSchema().getOpenAPIV3Schema()
-        .getProperties().get("spec").getProperties();
+          .getProperties().get("spec").getProperties();
       assertEquals(4, specProps.size());
 
       int unrollDepth = 0;
-      for (JSONSchemaProps ref1 = specProps.get("ref1"); ref1 != null; ref1 = ref1.getProperties().get("ref1") ) {
+      for (JSONSchemaProps ref1 = specProps.get("ref1"); ref1 != null; ref1 = ref1.getProperties().get("ref1")) {
         assertEquals("object", ref1.getType());
         assertEquals("integer", ref1.getProperties().get("number").getType());
         unrollDepth++;
@@ -313,7 +314,8 @@ class CRDGeneratorTest {
       assertEquals(3, unrollDepth, "ref1 should be unrolled 3 times");
 
       unrollDepth = 0;
-      for (JSONSchemaProps ref2 = specProps.get("ref2"); ref2 != null; ref2 = ref2.getItems().getSchema().getProperties().get("ref2") ) {
+      for (JSONSchemaProps ref2 = specProps.get("ref2"); ref2 != null; ref2 = ref2.getItems().getSchema().getProperties()
+          .get("ref2")) {
         assertEquals("array", ref2.getType());
         assertEquals("integer", ref2.getItems().getSchema().getProperties().get("number").getType());
         unrollDepth++;
@@ -321,7 +323,8 @@ class CRDGeneratorTest {
       assertEquals(3, unrollDepth, "ref2 should be unrolled 3 times");
 
       unrollDepth = 0;
-      for (JSONSchemaProps ref3 = specProps.get("ref3"); ref3 != null; ref3 = ref3.getAdditionalProperties().getSchema().getProperties().get("ref3") ) {
+      for (JSONSchemaProps ref3 = specProps.get("ref3"); ref3 != null; ref3 = ref3.getAdditionalProperties().getSchema()
+          .getProperties().get("ref3")) {
         assertEquals("object", ref3.getType());
         assertEquals("integer", ref3.getAdditionalProperties().getSchema().getProperties().get("number").getType());
         unrollDepth++;
@@ -330,19 +333,19 @@ class CRDGeneratorTest {
     });
   }
 
-
   @Test
   void schemaUnrollOnSchemaSwapWithTerminatorShouldWork() {
     outputCRDIfFailed(UnrollTerminator.class, (customResource) -> {
       final CustomResourceDefinitionVersion version = checkCRD(customResource, "UnrollTerminator", "unrollterminators",
-        Scope.NAMESPACED, UnrollTerminator.class);
+          Scope.NAMESPACED, UnrollTerminator.class);
       final Map<String, JSONSchemaProps> specProps = version.getSchema().getOpenAPIV3Schema()
-        .getProperties().get("spec").getProperties();
+          .getProperties().get("spec").getProperties();
       assertEquals(4, specProps.size());
 
       int unrollDepth = 0;
       JSONSchemaProps ref1;
-      for (ref1 = specProps.get("ref1"); ref1.getXKubernetesPreserveUnknownFields() == null; ref1 = ref1.getProperties().get("ref1") ) {
+      for (ref1 = specProps.get("ref1"); ref1.getXKubernetesPreserveUnknownFields() == null; ref1 = ref1.getProperties()
+          .get("ref1")) {
         assertEquals("object", ref1.getType());
         assertEquals("integer", ref1.getProperties().get("number").getType());
         unrollDepth++;
@@ -352,7 +355,8 @@ class CRDGeneratorTest {
 
       unrollDepth = 0;
       JSONSchemaProps ref2;
-      for (ref2 = specProps.get("ref2"); ref2.getItems() != null; ref2 = ref2.getItems().getSchema().getProperties().get("ref2") ) {
+      for (ref2 = specProps.get("ref2"); ref2.getItems() != null; ref2 = ref2.getItems().getSchema().getProperties()
+          .get("ref2")) {
         assertEquals("array", ref2.getType());
         assertEquals("integer", ref2.getItems().getSchema().getProperties().get("number").getType());
         unrollDepth++;
@@ -362,7 +366,8 @@ class CRDGeneratorTest {
 
       unrollDepth = 0;
       JSONSchemaProps ref3;
-      for (ref3 = specProps.get("ref3"); ref3.getAdditionalProperties() != null; ref3 = ref3.getAdditionalProperties().getSchema().getProperties().get("ref3") ) {
+      for (ref3 = specProps.get("ref3"); ref3.getAdditionalProperties() != null; ref3 = ref3.getAdditionalProperties()
+          .getSchema().getProperties().get("ref3")) {
         assertEquals("object", ref3.getType());
         assertEquals("integer", ref3.getAdditionalProperties().getSchema().getProperties().get("number").getType());
         unrollDepth++;
@@ -525,12 +530,13 @@ class CRDGeneratorTest {
   @Test
   void overlappingSchemaSwaps() {
     outputCRDIfFailed(OverlappingSchemaSwaps.class, (customResource) -> {
-      CustomResourceDefinitionVersion version = checkCRD(OverlappingSchemaSwaps.class, "OverlappingSchemaSwaps", "overlappingschemaswaps",
-        Scope.NAMESPACED);
+      CustomResourceDefinitionVersion version = checkCRD(OverlappingSchemaSwaps.class, "OverlappingSchemaSwaps",
+          "overlappingschemaswaps",
+          Scope.NAMESPACED);
       assertNull(version.getSubresources());
 
       final Map<String, JSONSchemaProps> specProps = version.getSchema().getOpenAPIV3Schema()
-        .getProperties().get("spec").getProperties();
+          .getProperties().get("spec").getProperties();
 
       assertEquals(5, specProps.size());
 
@@ -564,16 +570,16 @@ class CRDGeneratorTest {
     });
   }
 
-
   @Test
   void constrainedSchemaSwaps() {
     outputCRDIfFailed(OverlappingSchemaSwaps.class, (customResource) -> {
-      CustomResourceDefinitionVersion version = checkCRD(ConstrainedSchemaSwaps.class, "ConstrainedSchemaSwaps", "constrainedschemaswaps",
-        Scope.NAMESPACED);
+      CustomResourceDefinitionVersion version = checkCRD(ConstrainedSchemaSwaps.class, "ConstrainedSchemaSwaps",
+          "constrainedschemaswaps",
+          Scope.NAMESPACED);
       assertNull(version.getSubresources());
 
       final Map<String, JSONSchemaProps> specProps = version.getSchema().getOpenAPIV3Schema()
-        .getProperties().get("spec").getProperties();
+          .getProperties().get("spec").getProperties();
 
       assertEquals(5, specProps.size());
 

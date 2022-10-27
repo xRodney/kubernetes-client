@@ -27,5 +27,6 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface SchemaUnroll {
   int depth();
+
   Class<?> terminator() default void.class;
 }

@@ -15,6 +15,12 @@
  */
 package io.fabric8.crd.generator;
 
+import io.sundr.model.AttributeKey;
+import io.sundr.model.ClassRef;
+import io.sundr.model.Property;
+import io.sundr.model.PropertyBuilder;
+import io.sundr.model.TypeRef;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -24,12 +30,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
-
-import io.sundr.model.AttributeKey;
-import io.sundr.model.ClassRef;
-import io.sundr.model.Property;
-import io.sundr.model.PropertyBuilder;
-import io.sundr.model.TypeRef;
 
 import static io.sundr.model.utils.Types.VOID;
 
@@ -218,7 +218,12 @@ public class SchemaGenerationContext {
 
     @Override
     public String toString() {
-      return "@SchemaSwap(originalType=" + originalType + ", fieldName=\"" + fieldName + "\", targetType=" + targetType + ")";
+      return new StringJoiner(", ", "@SchemaSwap(", ")")
+          .add("originalType=" + originalType)
+          .add("fieldName=" + fieldName)
+          .add("targetType=" + targetType)
+          .add("unroll=" + unroll)
+          .toString();
     }
   }
 
@@ -245,10 +250,10 @@ public class SchemaGenerationContext {
 
     @Override
     public String toString() {
-      return new StringJoiner(", ", SchemaUnrollModel.class.getSimpleName() + "[", "]")
-        .add("depth=" + depth)
-        .add("terminator=" + terminator)
-        .toString();
+      return new StringJoiner(", ", "@SchemaUnroll(", ")")
+          .add("depth=" + depth)
+          .add("terminator=" + terminator)
+          .toString();
     }
   }
 
@@ -257,7 +262,8 @@ public class SchemaGenerationContext {
     private Map<Key, Value> swaps;
 
     public static Level root(TypeRef rootType) {
-      Property root = new Property(Collections.emptyList(), rootType, "", Collections.emptyList(), null, Collections.emptyMap());
+      Property root = new Property(Collections.emptyList(), rootType, "", Collections.emptyList(), null,
+          Collections.emptyMap());
       return new Level(root);
     }
 
@@ -283,8 +289,8 @@ public class SchemaGenerationContext {
     public void throwIfUnmatchedSwaps() {
       if (swaps != null) {
         String unmatchedSchemaSwaps = swaps.values().stream().filter(value -> !value.used)
-          .map(Object::toString)
-          .collect(Collectors.joining(", "));
+            .map(Object::toString)
+            .collect(Collectors.joining(", "));
         if (!unmatchedSchemaSwaps.isEmpty()) {
           throw new IllegalArgumentException("Unmatched SchemaSwaps: " + unmatchedSchemaSwaps);
         }

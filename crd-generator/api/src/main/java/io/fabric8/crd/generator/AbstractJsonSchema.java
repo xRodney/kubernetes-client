@@ -95,7 +95,8 @@ public abstract class AbstractJsonSchema<T, B> {
 
   public static final String JSON_NODE_TYPE = "com.fasterxml.jackson.databind.JsonNode";
   public static final String ANY_TYPE = "io.fabric8.kubernetes.api.model.AnyType";
-  public static final SchemaGenerationContext.SchemaUnrollModel NO_UNROLL = new SchemaGenerationContext.SchemaUnrollModel(0, VOID);
+  public static final SchemaGenerationContext.SchemaUnrollModel NO_UNROLL = new SchemaGenerationContext.SchemaUnrollModel(0,
+      VOID);
 
   static {
     COMMON_MAPPINGS.put(STRING_REF, STRING_MARKER);
@@ -225,21 +226,21 @@ public abstract class AbstractJsonSchema<T, B> {
     if (annotation instanceof SchemaSwap) {
       SchemaSwap schemaSwap = (SchemaSwap) annotation;
       context.registerSwap(definitionType,
-        new SchemaGenerationContext.SchemaSwapModel(
-          extractClassRef(schemaSwap.originalType()),
-          schemaSwap.fieldName(),
-          extractClassRef(schemaSwap.targetType()),
-          extractSchemaUnroll(schemaSwap.unroll())));
+          new SchemaGenerationContext.SchemaSwapModel(
+              extractClassRef(schemaSwap.originalType()),
+              schemaSwap.fieldName(),
+              extractClassRef(schemaSwap.targetType()),
+              extractSchemaUnroll(schemaSwap.unroll())));
 
     } else if (annotation instanceof AnnotationRef
         && ((AnnotationRef) annotation).getClassRef().getFullyQualifiedName().equals(ANNOTATION_SCHEMA_SWAP)) {
       Map<String, Object> params = ((AnnotationRef) annotation).getParameters();
       context.registerSwap(definitionType,
-        new SchemaGenerationContext.SchemaSwapModel(
-          extractClassRef(params.get("originalType")),
-          (String) params.get("fieldName"),
-          extractClassRef(params.getOrDefault("targetType", void.class)),
-          extractSchemaUnroll(params.get("unroll"))));
+          new SchemaGenerationContext.SchemaSwapModel(
+              extractClassRef(params.get("originalType")),
+              (String) params.get("fieldName"),
+              extractClassRef(params.getOrDefault("targetType", void.class)),
+              extractSchemaUnroll(params.get("unroll"))));
 
     } else {
       throw new IllegalArgumentException("Unmanaged annotation type passed to the SchemaSwaps: " + annotation);
@@ -254,9 +255,10 @@ public abstract class AbstractJsonSchema<T, B> {
       return new SchemaGenerationContext.SchemaUnrollModel(schemaUnroll.depth(), extractClassRef(schemaUnroll.terminator()));
 
     } else if (annotation instanceof AnnotationRef
-      && ((AnnotationRef) annotation).getClassRef().getFullyQualifiedName().equals(ANNOTATION_SCHEMA_UNROLL)) {
+        && ((AnnotationRef) annotation).getClassRef().getFullyQualifiedName().equals(ANNOTATION_SCHEMA_UNROLL)) {
       Map<String, Object> params = ((AnnotationRef) annotation).getParameters();
-      return new SchemaGenerationContext.SchemaUnrollModel((int) params.getOrDefault("depth", 0), extractClassRef(params.get("terminator")));
+      return new SchemaGenerationContext.SchemaUnrollModel((int) params.getOrDefault("depth", 0),
+          extractClassRef(params.get("terminator")));
 
     } else {
       throw new IllegalArgumentException("Unmanaged annotation type passed to the SchemaUnroll: " + annotation);
@@ -289,7 +291,8 @@ public abstract class AbstractJsonSchema<T, B> {
         continue;
       }
 
-      SchemaGenerationContext.SchemaSwapModel potentialSchemaSwap = context.lookupAndMark(definition.toReference(), name).orElse(null);
+      SchemaGenerationContext.SchemaSwapModel potentialSchemaSwap = context.lookupAndMark(definition.toReference(), name)
+          .orElse(null);
       final PropertyFacade facade = new PropertyFacade(property, accessors, potentialSchemaSwap);
       final Property possiblyRenamedProperty = facade.process();
       name = possiblyRenamedProperty.getName();
@@ -456,10 +459,6 @@ public abstract class AbstractJsonSchema<T, B> {
       return preserveUnknownFields;
     }
 
-    public boolean contributeUnroll() {
-      return unroll.getDepth() > 0;
-    }
-
     public SchemaGenerationContext.SchemaUnrollModel getUnroll() {
       return unroll;
     }
@@ -507,7 +506,8 @@ public abstract class AbstractJsonSchema<T, B> {
     private TypeRef schemaFrom;
     private SchemaGenerationContext.SchemaUnrollModel unroll = NO_UNROLL;
 
-    public PropertyFacade(Property property, Map<String, Method> potentialAccessors, SchemaGenerationContext.SchemaSwapModel schemaSwap) {
+    public PropertyFacade(Property property, Map<String, Method> potentialAccessors,
+        SchemaGenerationContext.SchemaSwapModel schemaSwap) {
       original = property;
       final String capitalized = property.getNameCapitalized();
       final String name = property.getName();
@@ -577,7 +577,7 @@ public abstract class AbstractJsonSchema<T, B> {
           schemaFrom = p.getSchemaFrom();
         }
 
-        if (p.contributeUnroll()) {
+        if (p.getUnroll().isDefined()) {
           unroll = p.getUnroll();
         }
       });
@@ -586,10 +586,10 @@ public abstract class AbstractJsonSchema<T, B> {
       String finalName = renamedTo != null ? renamedTo : original.getName();
 
       return new PropertyBuilder(original)
-        .withTypeRef(typeRef)
-        .withName(finalName)
-        .addToAttributes(SchemaGenerationContext.ATTRIBUTE_SCHEMA_UNROLL, unroll)
-        .build();
+          .withTypeRef(typeRef)
+          .withName(finalName)
+          .addToAttributes(SchemaGenerationContext.ATTRIBUTE_SCHEMA_UNROLL, unroll)
+          .build();
     }
   }
 

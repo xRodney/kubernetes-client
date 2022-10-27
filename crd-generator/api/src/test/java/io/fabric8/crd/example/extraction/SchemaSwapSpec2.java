@@ -1,7 +1,6 @@
 package io.fabric8.crd.example.extraction;
 
 import com.fasterxml.jackson.databind.JsonNode;
-
 import io.fabric8.crd.generator.annotation.SchemaSwap;
 
 public class SchemaSwapSpec2 {
