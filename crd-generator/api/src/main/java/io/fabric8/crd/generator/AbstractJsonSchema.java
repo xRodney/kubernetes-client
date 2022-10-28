@@ -206,26 +206,26 @@ public abstract class AbstractJsonSchema<T, B> {
     }
   }
 
-  private static void extractSchemaSwaps(ClassRef definitionType, AnnotationRef annotation, SchemaGenerationContext context) {
+  private static void extractSchemaSwaps(AnnotationRef annotation, SchemaGenerationContext context) {
     String fullyQualifiedName = annotation.getClassRef().getFullyQualifiedName();
     switch (fullyQualifiedName) {
       case ANNOTATION_SCHEMA_SWAP:
-        extractSchemaSwap(definitionType, annotation, context);
+        extractSchemaSwap(annotation, context);
         break;
       case ANNOTATION_SCHEMA_SWAPS:
         Map<String, Object> params = annotation.getParameters();
         Object[] values = (Object[]) params.get("value");
         for (Object value : values) {
-          extractSchemaSwap(definitionType, value, context);
+          extractSchemaSwap(value, context);
         }
         break;
     }
   }
 
-  private static void extractSchemaSwap(ClassRef definitionType, Object annotation, SchemaGenerationContext context) {
+  private static void extractSchemaSwap(Object annotation, SchemaGenerationContext context) {
     if (annotation instanceof SchemaSwap) {
       SchemaSwap schemaSwap = (SchemaSwap) annotation;
-      context.registerSwap(definitionType,
+      context.registerSwap(
           new SchemaGenerationContext.SchemaSwapModel(
               extractClassRef(schemaSwap.originalType()),
               schemaSwap.fieldName(),
@@ -235,7 +235,7 @@ public abstract class AbstractJsonSchema<T, B> {
     } else if (annotation instanceof AnnotationRef
         && ((AnnotationRef) annotation).getClassRef().getFullyQualifiedName().equals(ANNOTATION_SCHEMA_SWAP)) {
       Map<String, Object> params = ((AnnotationRef) annotation).getParameters();
-      context.registerSwap(definitionType,
+      context.registerSwap(
           new SchemaGenerationContext.SchemaSwapModel(
               extractClassRef(params.get("originalType")),
               (String) params.get("fieldName"),
@@ -279,7 +279,7 @@ public abstract class AbstractJsonSchema<T, B> {
 
     boolean preserveUnknownFields = isJsonNode;
 
-    definition.getAnnotations().forEach(annotation -> extractSchemaSwaps(definition.toReference(), annotation, context));
+    definition.getAnnotations().forEach(annotation -> extractSchemaSwaps(annotation, context));
 
     // index potential accessors by name for faster lookup
     final Map<String, Method> accessors = indexPotentialAccessors(definition);

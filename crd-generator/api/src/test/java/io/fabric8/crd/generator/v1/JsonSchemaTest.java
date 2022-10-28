@@ -263,7 +263,9 @@ class JsonSchemaTest {
     IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
         () -> JsonSchema.from(incorrectExtraction));
     assertEquals(
-        "Unmatched SchemaSwaps: @SchemaSwap(originalType=io.fabric8.crd.example.extraction.ExtractionSpec, fieldName=FOO, targetType=io.fabric8.crd.example.extraction.FooExtractor, unroll=@SchemaUnroll(depth=0, terminator=void)) on io.fabric8.crd.example.extraction.IncorrectExtraction",
+        "Unmatched SchemaSwaps on io.fabric8.crd.example.extraction.IncorrectExtraction: "
+          + "@SchemaSwap(originalType=io.fabric8.crd.example.extraction.ExtractionSpec, "
+          + "fieldName=FOO, targetType=io.fabric8.crd.example.extraction.FooExtractor)",
         exception.getMessage());
   }
 
@@ -273,7 +275,9 @@ class JsonSchemaTest {
     IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
         () -> JsonSchema.from(incorrectExtraction2));
     assertEquals(
-        "Unmatched SchemaSwaps: @SchemaSwap(originalType=io.fabric8.crd.example.basic.BasicSpec, fieldName=bar, targetType=io.fabric8.crd.example.extraction.FooExtractor, unroll=@SchemaUnroll(depth=0, terminator=void)) on io.fabric8.crd.example.extraction.IncorrectExtraction2",
+        "Unmatched SchemaSwaps on io.fabric8.crd.example.extraction.IncorrectExtraction2: "
+          + "@SchemaSwap(originalType=io.fabric8.crd.example.basic.BasicSpec, "
+          + "fieldName=bar, targetType=io.fabric8.crd.example.extraction.FooExtractor)",
         exception.getMessage());
   }
 

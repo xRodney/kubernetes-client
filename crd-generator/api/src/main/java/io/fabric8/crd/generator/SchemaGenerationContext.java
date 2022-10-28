@@ -33,6 +33,17 @@ import java.util.stream.Collectors;
 
 import static io.sundr.model.utils.Types.VOID;
 
+/**
+ * Class describing the current state of schema generation.
+ *
+ * In particular, the SchemaGenerationContext is responsible for:
+ * <ul>
+ *   <li>Maintaining the property hierarchy leading to the current object</li>
+ *   <li>Detecting cycles</li>
+ *   <li>Unrolling cycles, if desired</li>
+ *   <li>Maintaining the scope of currently active SchemaSwaps</li>
+ * </ul>
+ */
 public class SchemaGenerationContext {
   public static final AttributeKey<SchemaUnrollModel> ATTRIBUTE_SCHEMA_UNROLL = new AttributeKey<>(SchemaUnrollModel.class);
 
@@ -42,12 +53,11 @@ public class SchemaGenerationContext {
     hierarchy.addLast(Level.root(rootType));
   }
 
-  public void registerSwap(ClassRef definitionType, SchemaSwapModel swap) {
-    Key key = new Key(swap.originalType, swap.fieldName);
-    Value value = new Value(swap, definitionType);
-    Value conflict = hierarchy.getLast().addSwap(key, value);
+  public void registerSwap(SchemaSwapModel swap) {
+    Level level = hierarchy.getLast();
+    SchemaSwapModel conflict = level.registerSwap(swap);
     if (conflict != null) {
-      throw new IllegalArgumentException("Conflicting @SchemaSwaps on " + definitionType + ": " + value + " vs. " + conflict);
+      throw new IllegalArgumentException("Conflicting @SchemaSwaps on " + level.getProperty().getTypeRef() + ": " + swap + " vs. " + conflict);
     }
   }
 
@@ -148,12 +158,10 @@ public class SchemaGenerationContext {
 
   private static class Value {
     private boolean used;
-    private final ClassRef definitionType;
     private final SchemaSwapModel swap;
 
-    public Value(SchemaSwapModel swap, ClassRef definitionType) {
+    public Value(SchemaSwapModel swap) {
       this.swap = swap;
-      this.definitionType = definitionType;
       this.used = false;
     }
 
@@ -171,7 +179,10 @@ public class SchemaGenerationContext {
 
     @Override
     public String toString() {
-      return swap + " on " + definitionType;
+      return new StringJoiner(", ", Value.class.getSimpleName() + "[", "]")
+        .add("used=" + used)
+        .add("swap=" + swap)
+        .toString();
     }
   }
 
@@ -218,12 +229,16 @@ public class SchemaGenerationContext {
 
     @Override
     public String toString() {
-      return new StringJoiner(", ", "@SchemaSwap(", ")")
-          .add("originalType=" + originalType)
-          .add("fieldName=" + fieldName)
-          .add("targetType=" + targetType)
-          .add("unroll=" + unroll)
-          .toString();
+      StringJoiner joiner = new StringJoiner(", ", "@SchemaSwap(", ")")
+        .add("originalType=" + originalType)
+        .add("fieldName=" + fieldName);
+      if (targetType != null) {
+        joiner.add("targetType=" + targetType);
+      }
+      if (unroll.isDefined()) {
+        joiner.add("unroll=" + unroll);
+      }
+      return joiner.toString();
     }
   }
 
@@ -275,11 +290,12 @@ public class SchemaGenerationContext {
       return swaps == null ? Collections.emptyMap() : swaps;
     }
 
-    public Value addSwap(Key key, Value value) {
+    public SchemaSwapModel registerSwap(SchemaSwapModel swap) {
       if (swaps == null) {
         swaps = new HashMap<>();
       }
-      return swaps.put(key, value);
+      Value conflict = swaps.put(new Key(swap.originalType, swap.fieldName), new Value(swap));
+      return conflict == null ? null : conflict.getSwap();
     }
 
     public Property getProperty() {
@@ -289,10 +305,10 @@ public class SchemaGenerationContext {
     public void throwIfUnmatchedSwaps() {
       if (swaps != null) {
         String unmatchedSchemaSwaps = swaps.values().stream().filter(value -> !value.used)
-            .map(Object::toString)
+            .map(value -> value.getSwap().toString())
             .collect(Collectors.joining(", "));
         if (!unmatchedSchemaSwaps.isEmpty()) {
-          throw new IllegalArgumentException("Unmatched SchemaSwaps: " + unmatchedSchemaSwaps);
+          throw new IllegalArgumentException("Unmatched SchemaSwaps on " + property.getTypeRef() + ": " + unmatchedSchemaSwaps);
         }
       }
     }
