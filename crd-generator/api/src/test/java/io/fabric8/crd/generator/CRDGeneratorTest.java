@@ -582,7 +582,19 @@ class CRDGeneratorTest {
 
   @Test
   void conflictingSchemaSwaps() {
-    assertThrows(IllegalArgumentException.class, () -> checkSpec(ConflictingSchemaSwaps.class, Scope.NAMESPACED));
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> checkSpec(ConflictingSchemaSwaps.class,
+      Scope.NAMESPACED));
+    assertEquals("Conflicting @SchemaSwaps on io.fabric8.crd.example.extraction.ConflictingSchemaSwaps: "
+      + "@SchemaSwap(originalType=io.fabric8.crd.example.extraction.SchemaSwapSpec2.Joker, "
+      + "fieldName=joker, "
+      + "targetType=java.lang.Integer, "
+      + "unroll=@SchemaUnroll(depth=0, terminator=void)) "
+      + "on io.fabric8.crd.example.extraction.ConflictingSchemaSwaps "
+      + "vs. @SchemaSwap(originalType=io.fabric8.crd.example.extraction.SchemaSwapSpec2.Joker, "
+      + "fieldName=joker, "
+      + "targetType=java.lang.String, "
+      + "unroll=@SchemaUnroll(depth=0, terminator=void)) "
+      + "on io.fabric8.crd.example.extraction.ConflictingSchemaSwaps", exception.getMessage());
   }
 
   private CustomResourceDefinitionVersion checkCRD(Class<? extends CustomResource<?, ?>> customResource, String kind,

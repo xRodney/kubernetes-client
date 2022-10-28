@@ -47,7 +47,7 @@ public class SchemaGenerationContext {
     Value value = new Value(swap, definitionType);
     Value conflict = hierarchy.getLast().addSwap(key, value);
     if (conflict != null) {
-      throw new IllegalArgumentException("Conflict");
+      throw new IllegalArgumentException("Conflicting @SchemaSwaps on " + definitionType + ": " + value + " vs. " + conflict);
     }
   }
 
