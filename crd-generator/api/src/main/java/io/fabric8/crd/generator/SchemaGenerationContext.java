@@ -21,15 +21,20 @@ import io.sundr.model.Property;
 import io.sundr.model.PropertyBuilder;
 import io.sundr.model.TypeRef;
 
+import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static io.sundr.model.utils.Types.VOID;
 
@@ -47,7 +52,7 @@ import static io.sundr.model.utils.Types.VOID;
 public class SchemaGenerationContext {
   public static final AttributeKey<SchemaUnrollModel> ATTRIBUTE_SCHEMA_UNROLL = new AttributeKey<>(SchemaUnrollModel.class);
 
-  private final LinkedList<Level> hierarchy = new LinkedList<>();
+  private final Deque<Level> hierarchy = new ArrayDeque<>();
 
   public SchemaGenerationContext(TypeRef rootType) {
     hierarchy.addLast(Level.root(rootType));
@@ -64,17 +69,10 @@ public class SchemaGenerationContext {
   public Optional<SchemaSwapModel> lookupAndMark(ClassRef originalType, String name) {
     Key key = new Key(originalType, name);
 
-    Iterator<Level> iterator = hierarchy.descendingIterator();
-    while (iterator.hasNext()) {
-      Level level = iterator.next();
-      Value value = level.getSwaps().get(key);
-      if (value != null) {
-        value.markUsed();
-        return Optional.of(value.getSwap());
-      }
-    }
-
-    return Optional.empty();
+    return hierarchyDescendingStream()
+      .map(level -> level.lookupAndMark(key))
+      .filter(Optional::isPresent).map(Optional::get)
+      .findFirst();
   }
 
   public void close() {
@@ -111,6 +109,12 @@ public class SchemaGenerationContext {
     return hierarchy.stream()
         .map(Object::toString)
         .collect(Collectors.joining(" -> "));
+  }
+
+  private Stream<Level> hierarchyDescendingStream() {
+    return StreamSupport.stream(
+      Spliterators.spliterator(hierarchy.descendingIterator(), hierarchy.size(), Spliterator.ORDERED),
+      false);
   }
 
   private static final class Key {
@@ -169,8 +173,9 @@ public class SchemaGenerationContext {
       return swap;
     }
 
-    private void markUsed() {
+    public SchemaSwapModel markAndGetSwap() {
       this.used = true;
+      return swap;
     }
 
     public boolean isUsed() {
@@ -296,6 +301,10 @@ public class SchemaGenerationContext {
       }
       Value conflict = swaps.put(new Key(swap.originalType, swap.fieldName), new Value(swap));
       return conflict == null ? null : conflict.getSwap();
+    }
+
+    public Optional<SchemaSwapModel> lookupAndMark(Key key) {
+      return Optional.ofNullable(swaps).map(s -> s.get(key)).map(Value::markAndGetSwap);
     }
 
     public Property getProperty() {
